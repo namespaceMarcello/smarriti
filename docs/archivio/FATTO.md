@@ -18,3 +18,20 @@ con tre scoperte (rischi dei gatti troppo alti, mediana mista, cani raccolti tar
 superata (mappa troppo rada; C1 lo isola). Avvistamenti e ricerche costruiti e poi tolti
 su richiesta di Marcello. 54 test in tre famiglie, ~26 s. Si prova: `pytest -q`, poi
 `python -m sim cases/esempio-gatto.json --now 2026-09-22T08:00 --out out/`.
+
+### 2026-09-25 — Mappa lisciata; C1 e C2 superate
+`make_grid` è una densità a nucleo adattiva (σ dalla 10ª vicina, classi di σ, griglie
+via via più rade per i σ grandi); il GeoJSON è un quadtree; «cerca qui» lavora su una
+finestra. C1 regge per tutte le categorie, C2 batte gli anelli (0,44 · 0,42). Comando a
+0,4-0,5 s sui due esempi. 63 test + 4 `xfail`, ~35 s. `python -m sim.compare` (o doppio clic su `vedi-la-mappa.bat`) mette prima, anelli e ora fianco a fianco. Si prova: `pytest -q`,
+`python -m sim.validate --coverage`, `python -m sim.baseline`.
+
+### 2026-09-25 — Gatti a rischi in competizione (A5); il luogo in 3D deciso
+La taratura dei gatti legge ogni gatto al primo dei suoi eventi, con la ricerca del
+padrone solo nella taratura (`sim/calibrate.py`: `found_by`, `solve_search`,
+`solve_cat_hazards`): `h_home` 5-6 volte più basso, B2 passa, C2 regge (0,39 · 0,42).
+`sim.baseline` stampa anche la quota «cerca meno» e la media geometrica. Deciso con
+Marcello il luogo in 3D al metro e, il 2026-09-26, niente casi raccolti da noi: solo
+matematica, studi e dati aperti (`STATO.md`); fonti aperte trovate (`riferimenti.md` §B).
+Si prova: `pytest -q --runslow`, `python -m sim.calibrate cat_indoor`, `python -m sim.validate`,
+`python -m sim.baseline`.

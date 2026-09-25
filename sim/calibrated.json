@@ -1,19 +1,19 @@
 {
   "cat_indoor": {
     "anchor_med_m": 49.5,
-    "anchor_sigma": 2.0,
+    "anchor_sigma": 2.1,
     "step_flight": 25.0,
     "step_settled": 25.0,
-    "h_home": 0.000875,
-    "h_pickup": 0.000934
+    "h_home": 0.000139,
+    "h_pickup": 0.000138
   },
   "cat_outdoor": {
     "anchor_med_m": 540.0,
     "anchor_sigma": 2.2,
-    "step_flight": 1.8,
-    "step_settled": 1.8,
-    "h_home": 0.000753,
-    "h_pickup": 0.000932
+    "step_flight": 3.0,
+    "step_settled": 3.0,
+    "h_home": 0.000143,
+    "h_pickup": 0.000151
   },
   "dog_friendly": {
     "step_flight": 25.5,
@@ -29,5 +29,27 @@
     "step_flight": 1190.0,
     "step_settled": 238.0,
     "h_home": 0.000435
+  },
+  "_search": {
+    "cat_indoor": {
+      "h_home": 0.000139,
+      "h_pickup": 0.000138,
+      "h_dead": 0.0002,
+      "rates_per_h": [
+        0.00226134,
+        0.000276049,
+        9.08681e-06
+      ]
+    },
+    "cat_outdoor": {
+      "h_home": 0.000143,
+      "h_pickup": 0.000151,
+      "h_dead": 0.0003,
+      "rates_per_h": [
+        0.00224736,
+        0.000295908,
+        3.32631e-05
+      ]
+    }
   }
 }

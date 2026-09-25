@@ -4,8 +4,11 @@
     python -m sim.calibrate cat_indoor   # or cat_outdoor, dogs, all; writes calibrated.json
 
 Cats (Huang 2018, cats found alive): p25/p50/p75 of the distance from the point of escape.
-Each particle gets a find hour drawn from Huang's recovery curve and is read at that hour:
-LOOSE or HELD -> its distance (HELD: where it was picked up), HOME -> 0, DEAD -> excluded.
+Competing risks (lessons.md #8): each cat leaves the loose state at the first of its events
+and is read at that hour: HOME -> 0, HELD -> where it was picked up, DEAD -> excluded, and,
+in the calibration only, FOUND by the searcher -> its position. The search hazard is the
+same at every distance and constant between days 0-7-30-61; it is solved so that the
+found-alive curve matches Huang, while h_home and h_pickup are scaled to Huang's shares.
 Dogs (Kremer 2021, strays returned to owner): distance of the pickup point, all three dog
 categories pooled with the 50/30/20 prior: 42% within 120 m, 70% within 1,609 m.
 Search: a coarse grid, then a finer grid around the best; a parameter set is accepted
@@ -19,6 +22,7 @@ import json
 from dataclasses import replace
 
 import numpy as np
+from scipy.optimize import brentq
 
 from .categories import BASE, CALIBRATED_PATH, MIXTURES, Category, get, load_calibrated
 from .engine import DEAD, HELD, HOME, LOOSE, Simulation
@@ -40,11 +44,10 @@ HOD0 = 18  # losses start in the evening (unsourced)
 DOG_NAMES = list(MIXTURES["dog"])
 
 
-def found_hours(n: int, rng: np.random.Generator) -> np.ndarray:
-    """Find hours drawn from Huang's curve, conditioned on being found alive by day 61."""
-    days, cum = zip(*HUANG_FOUND)
-    u = rng.uniform(0, cum[-1], n)
-    return np.maximum(1, np.ceil(np.interp(u, cum, days) * 24)).astype(np.int64)
+CAT_HORIZON_H = HUANG_FOUND[-1][0] * 24
+SEARCH_KNOTS_H = np.array([d for d, _ in HUANG_FOUND], float) * 24  # search hazard constant in between
+SEARCH_KEY = "_search"  # in calibrated.json: the search hazards that go with each cat's h_home, h_pickup
+SEARCH_BY = ("h_home", "h_pickup", "h_dead", "home_from_h", "home_until_h", "home_late_mult")
 
 
 def rel_err(got, target) -> float:
@@ -55,39 +58,123 @@ def rel_err(got, target) -> float:
 # --- cats ----------------------------------------------------------------------------------
 
 
+def search_cum(rates, t) -> np.ndarray:
+    """Cumulative search hazard at hour t; rates per hour, constant between the knots."""
+    t = np.asarray(t, float)
+    return sum(r * np.clip(t - lo, 0.0, hi - lo) for r, lo, hi in zip(rates, SEARCH_KNOTS_H[:-1], SEARCH_KNOTS_H[1:]))
+
+
+def search_hours(rates, n: int, rng: np.random.Generator) -> np.ndarray:
+    """Hour at which the searcher finds each cat if it is still loose (horizon + 1: never)."""
+    e = rng.exponential(1.0, n)
+    cum = search_cum(np.maximum(rates, 1e-12), SEARCH_KNOTS_H)  # strictly increasing: invertible
+    t = np.maximum(1, np.ceil(np.interp(e, cum, SEARCH_KNOTS_H)))
+    return np.where(e > cum[-1], CAT_HORIZON_H + 1, t).astype(np.int64)
+
+
+def cat_events(cat: Category, n: int, seed: int) -> tuple[np.ndarray, np.ndarray]:
+    """Final state and event hour (-1: none) of each cat after 61 days, without any search."""
+    sim = Simulation([(cat, 1.0)], n, seed, hod0=HOD0)
+    sim.run(CAT_HORIZON_H)
+    return sim.state, sim.t_end
+
+
+def found_by(state: np.ndarray, t_end: np.ndarray, rates, day: float) -> dict[str, float]:
+    """Share of all cats found at home, held and outside by `day`. Exact given one engine run,
+    because the search does not depend on the place: an engine event at hour e comes first
+    with probability exp(-L(e - 1)); the searcher finds a cat at hour k <= e - 1."""
+    ev = np.where(t_end > 0, t_end, np.inf)
+    t = day * 24
+    first = np.exp(-search_cum(rates, np.minimum(ev - 1, CAT_HORIZON_H)))
+    return {"home": float(np.mean(np.where((state == HOME) & (ev <= t), first, 0.0))),
+            "held": float(np.mean(np.where((state == HELD) & (ev <= t), first, 0.0))),
+            "outside": float(np.mean(1 - np.exp(-search_cum(rates, np.minimum(t, ev - 1)))))}
+
+
+def solve_search(state: np.ndarray, t_end: np.ndarray) -> list[float]:
+    """The three search hazards that put the found-alive curve on Huang's, knot by knot."""
+    rates = [0.0, 0.0, 0.0]
+    for k, (day, target) in enumerate(HUANG_FOUND[1:]):
+        def gap(r, k=k, day=day, target=target):
+            return sum(found_by(state, t_end, rates[:k] + [r] + [0.0] * (2 - k), day).values()) - target
+        if gap(0.0) >= 0:  # the engine alone finds enough: no search in this stretch
+            continue
+        if gap(1.0) < 0:
+            raise ValueError(f"no search hazard reaches {target} found by day {day}: too many cats die")
+        rates[k] = brentq(gap, 0.0, 1.0, xtol=1e-12)
+    return rates
+
+
+def shares(state: np.ndarray, t_end: np.ndarray, rates) -> dict[str, float]:
+    f = found_by(state, t_end, rates, HUANG_FOUND[-1][0])
+    total = sum(f.values())
+    return {"found": total, "home": f["home"] / total, "held": f["held"] / total}
+
+
+_SEARCH_CACHE: dict[tuple, list[float]] = {}
+
+
+def search_key(cat: Category) -> tuple:
+    return (cat.name, *(float(getattr(cat, k)) for k in SEARCH_BY))
+
+
+def search_rates(cat: Category, seed: int = 0) -> list[float]:
+    """The search hazards that go with this cat's hazards: saved by the calibration, or solved
+    now from one engine run (cached: a grid that only moves the cat solves once)."""
+    key = search_key(cat)
+    if key not in _SEARCH_CACHE:
+        saved = load_calibrated().get(SEARCH_KEY, {}).get(cat.name, {})
+        if saved and all(np.isclose(saved.get(k, np.nan), getattr(cat, k)) for k in ("h_home", "h_pickup", "h_dead")):
+            _SEARCH_CACHE[key] = saved["rates_per_h"]
+        else:
+            _SEARCH_CACHE[key] = solve_search(*cat_events(cat, 20_000, seed))
+    return _SEARCH_CACHE[key]
+
+
 def cat_readings(cats: list[Category], n_per: int, seed: int) -> list[tuple[np.ndarray, np.ndarray]]:
-    """For each category: (distance at the find hour, state at the find hour); DEAD -> nan."""
+    """For each category: (distance where it was found alive, state then). A cat is read at the
+    first of its events; nan when it died or was not found by day 61."""
     rng = np.random.default_rng(seed + 1)
     n = n_per * len(cats)
     sim = Simulation([(c, 1.0) for c in cats], n, seed, hod0=HOD0)
-    t_find = found_hours(n, rng)
-    rec = sim.run(int(t_find.max()), record_at=t_find)
+    idx = sim.par.cat_idx
+    t_find = np.empty(n, np.int64)
+    for i, c in enumerate(cats):
+        t_find[idx == i] = search_hours(search_rates(c), int(np.sum(idx == i)), rng)
+    rec = sim.run(CAT_HORIZON_H, record_at=np.minimum(t_find, CAT_HORIZON_H))
     d = np.hypot(rec["x"], rec["y"])
     d = np.where(rec["state"] == HOME, 0.0, d)
-    d = np.where(rec["state"] == DEAD, np.nan, d)
-    idx = sim.par.cat_idx
+    lost = (rec["state"] == DEAD) | ((rec["state"] == LOOSE) & (t_find > CAT_HORIZON_H))
+    d = np.where(lost, np.nan, d)
     return [(d[idx == i], rec["state"][idx == i]) for i in range(len(cats))]
 
 
-def cat_shares(state: np.ndarray) -> tuple[float, float]:
-    alive = state != DEAD
-    return float(np.mean(state[alive] == HOME)), float(np.mean(state[alive] == HELD))
+def cat_shares(d: np.ndarray, state: np.ndarray) -> tuple[float, float]:
+    """Shares found at home and held among the cats found alive, from the readings."""
+    found = ~np.isnan(d)
+    return float(np.mean(state[found] == HOME)), float(np.mean(state[found] == HELD))
 
 
 def cat_quantiles(d: np.ndarray) -> np.ndarray:
     return np.nanpercentile(d, [25, 50, 75])
 
 
-def solve_cat_hazards(cat: Category, seed: int = 0, n: int = 20_000) -> Category:
-    """Scale h_home and h_pickup until the found-at-home and found-held shares match Huang."""
-    for _ in range(8):
-        _, state = cat_readings([cat], n, seed)[0]
-        home, held = cat_shares(state)
-        if abs(home / CAT_SHARE_HOME - 1) < 0.02 and abs(held / CAT_SHARE_HELD - 1) < 0.02:
+def solve_cat_hazards(cat: Category, seed: int = 0, n: int = 20_000) -> tuple[Category, list[float], dict]:
+    """Scale h_home and h_pickup, solving the search again each time, until the shares found at
+    home and held by day 61 match Huang. The hazards do not depend on how the cat moves in
+    the reference zone, so this runs before the grid on the movement."""
+    for _ in range(12):
+        state, t_end = cat_events(cat, n, seed)
+        rates = solve_search(state, t_end)
+        s = shares(state, t_end, rates)
+        on_curve = all(abs(sum(found_by(state, t_end, rates, day).values()) - f) < 1e-3 for day, f in HUANG_FOUND[1:])
+        if on_curve and abs(s["home"] / CAT_SHARE_HOME - 1) < 0.01 and abs(s["held"] / CAT_SHARE_HELD - 1) < 0.01:
             break
-        cat = replace(cat, h_home=cat.h_home * CAT_SHARE_HOME / max(home, 1e-4),
-                      h_pickup=cat.h_pickup * CAT_SHARE_HELD / max(held, 1e-4))
-    return cat
+        cat = replace(cat, h_home=cat.h_home * CAT_SHARE_HOME / max(s["home"], 1e-4),
+                      h_pickup=cat.h_pickup * CAT_SHARE_HELD / max(s["held"], 1e-4))
+    else:
+        raise ValueError(f"{cat.name}: shares did not converge ({s})")
+    return cat, rates, s
 
 
 CAT_GRID = {
@@ -112,7 +199,8 @@ def search_cat(cat: Category, grid: dict, n_per: int, seed: int) -> list[dict]:
 
 
 def calibrate_cat(name: str, seed: int = 0) -> dict:
-    cat = solve_cat_hazards(get(name, calibrated=False), seed)
+    cat, rates, solved = solve_cat_hazards(get(name, calibrated=False), seed)
+    _SEARCH_CACHE[search_key(cat)] = rates
     coarse = search_cat(cat, CAT_GRID[name], 800, seed)
     b = coarse[0]
     fine_grid = {
@@ -127,12 +215,14 @@ def calibrate_cat(name: str, seed: int = 0) -> dict:
                for c, (d, st) in zip(top, cat_readings(top, 20_000, seed + 13))]
     _, final, d, state = min(checked, key=lambda r: r[0])
     q = cat_quantiles(d)
-    home, held = cat_shares(state)
+    home, held = cat_shares(d, state)
     return {
         "category": final,
+        "search": rates,
         "report": {
             "target_p25_p50_p75": CAT_TARGETS[name], "got": [round(v, 1) for v in q], "max_rel_err": round(rel_err(q, CAT_TARGETS[name]), 3),
-            "share_home": round(home, 3), "share_held": round(held, 3),
+            "share_home": round(home, 3), "share_held": round(held, 3), "found_alive_by_61d": round(float(np.mean(~np.isnan(d))), 3),
+            "search_rates_per_h": [float(f"{r:.4g}") for r in rates], "solved_found_home_held": [round(v, 3) for v in solved.values()],
             "accepted_coarse": sum(r["err"] <= TOL for r in coarse), "coarse_points": len(coarse),
             "accepted_fine": sum(r["err"] <= TOL for r in fine), "fine_points": len(fine),
             "params": {k: round(getattr(final, k), 5) for k in ("anchor_med_m", "anchor_sigma", "step_settled", "h_home", "h_pickup")},
@@ -224,7 +314,7 @@ def measure_start(seed: int = 0) -> dict:
     out = {}
     for name in CAT_TARGETS:
         d, state = cat_readings([get(name, calibrated=False)], 20_000, seed)[0]
-        home, held = cat_shares(state)
+        home, held = cat_shares(d, state)
         out[name] = {"got_p25_p50_p75": [round(v, 1) for v in cat_quantiles(d)], "target": CAT_TARGETS[name],
                      "share_home": round(home, 3), "share_held": round(held, 3)}
     m = dog_metrics(dog_run([[get(n, calibrated=False) for n in DOG_NAMES]], 20_000, seed), 0)
@@ -233,12 +323,16 @@ def measure_start(seed: int = 0) -> dict:
     return out
 
 
-def save(cats: list[Category]) -> None:
+def save(cats: list[Category], search: list[float] | None = None) -> None:
     data = load_calibrated()
     for c in cats:
         data[c.name] = {k: round(float(getattr(c, k)), 6) for k in
                         ("anchor_med_m", "anchor_sigma", "step_flight", "step_settled", "h_home", "h_pickup")
                         if getattr(c, k) != getattr(BASE[c.name], k)}
+    if search is not None:
+        (c,) = cats
+        data.setdefault(SEARCH_KEY, {})[c.name] = {**{k: data[c.name].get(k, float(getattr(c, k))) for k in ("h_home", "h_pickup")},
+                                                   "h_dead": float(c.h_dead), "rates_per_h": [float(f"{r:.6g}") for r in search]}
     CALIBRATED_PATH.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
 
@@ -257,7 +351,7 @@ def main(argv: list[str] | None = None) -> None:
             save(r["categories"])
         else:
             r = calibrate_cat(what, args.seed)
-            save([r["category"]])
+            save([r["category"]], r["search"])
         print(what, json.dumps(r["report"], indent=2))
 
 

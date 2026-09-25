@@ -72,3 +72,36 @@ def test_search_spots_do_not_share_mass():
     sim = run_case(load_case(DOG), 40, n=5000)
     g = make_grid(sim)
     assert sum(s["mass"] for s in search_spots(g)) <= g.mass.sum() + 1e-9
+
+
+def test_smoothed_map_stays_small_and_fast():
+    """lessons.md #21: the free-roaming cat reaches tens of km; the smoothed map of 5,000
+    particles stays near the histogram's rectangle (~2,000 x 2,000 cells) and under a second."""
+    from sim.outputs import make_grid
+
+    sim = Simulation([(get("cat_outdoor"), 1.0)], 5000, seed=41)
+    sim.run(48)
+    sim.condition_not_home()
+    t = time.perf_counter()
+    g = make_grid(sim)
+    assert time.perf_counter() - t < 1.0
+    assert g.mass.size < 6_000_000
+    assert g.mass.sum() <= sim.state_probs()["loose"] + 1e-9
+
+
+def test_geojson_stays_small(tmp_path):
+    """lessons.md #22: a smoothed map fills an area, so the GeoJSON is a quadtree of blocks."""
+    t = time.perf_counter()
+    cli_main([str(DOG), "--now", "2026-09-22T08:00", "--out", str(tmp_path)])
+    assert time.perf_counter() - t < 5
+    assert (tmp_path / "esempio-cane.geojson").stat().st_size < 2_000_000
+    geo = json.loads((tmp_path / "esempio-cane.geojson").read_text(encoding="utf-8"))
+    cells = [f["properties"] for f in geo["features"] if f["properties"]["kind"] == "cell"]
+    assert min(c["size_m"] for c in cells) == 50 and max(c["size_m"] for c in cells) > 50
+
+
+def test_compare_image_is_written(tmp_path):
+    from sim.compare import main as compare_main
+
+    out = compare_main(["--out", str(tmp_path / "c.png")])
+    assert out.stat().st_size > 50_000

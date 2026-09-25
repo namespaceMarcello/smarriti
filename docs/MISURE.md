@@ -2,7 +2,7 @@
 
 Ogni misura ha la **previsione scritta prima** del risultato. Un risultato negativo si
 scrive uguale: una premessa che dà zero è una scoperta. In coda, in ordine di tempo.
-Le fasi (A taratura, B controllo predittivo, C anelli, D casi reali) sono in
+Le fasi (A taratura, B controllo predittivo, C anelli) sono in
 `simulatore.md`.
 
 Formato di ogni voce:
@@ -261,3 +261,130 @@ simulatore è, per costruzione, un modello radiale: il meglio che può fare è u
 continuo e ben stimato. Per battere gli anelli in direzione, e non solo in distanza, serve
 la mappa della zona (strade, palazzi, parchi): è l'unica cosa che rompe la simmetria
 attorno a casa. Ci si ferma: si decide con Marcello.
+
+### 2026-09-25 — C1″ e C2″ — la mappa lisciata (densità a nucleo adattiva)
+La mappa non è più un istogramma: ogni particella libera si allarga come una gaussiana di
+σᵢ = max(25 m, α · dᵢ), con dᵢ la distanza dalla 10ª vicina (`sim/outputs.py`,
+`make_grid`). Il rettangolo tiene il 99% delle particelle più 2 volte il σ mediano. α si
+sceglie con C1 su un seme diverso da quello della misura (seme 7 per la scelta, seme 0 per
+C1, i semi di sempre per C2).
+Previsione, scritta prima di ogni lancio:
+- **Scelta di α** (0,5 / 0,7 / 1,0 / 1,4 / 2,0, a 48 ore): la copertura cresce con α (più
+  liscio, regioni più larghe); α migliore fra 1,0 e 2,0; con α = 0,5 i cani lontani restano
+  sotto (copertura al 90% 0,70-0,85), non più a 0,1-0,2.
+- **C1** con l'α scelto, a 48 ore e a 7 giorni: copertura al 50% fra 0,46 e 0,56 e al 90%
+  fra 0,86 e 0,93 per **tutte** le categorie, cani lontani compresi (prima 0,04-0,25). Il
+  gatto da appartamento resta dov'era (0,52 / 0,87-0,89): le sue particelle sono già fitte e
+  σ vale quasi sempre il minimo, mezza cella.
+- **C2** (stessi 200 casi, stessi semi): copertura al 90% del simulatore 0,85-0,95 (era
+  0,48). Rapporto simulatore / anelli su tutte le verità: mediana 0,6-1,0, 90° percentile
+  0,9-1,4. Per categoria sulla mediana: gatto da appartamento 0,3-0,7, gatto libero
+  0,6-1,1, cane socievole 0,9-1,2, cani diffidente e pauroso 0,7-1,2. Verdetto previsto:
+  **non batte, per poco**: la mediana scende sotto gli anelli, il 90° percentile no. In una
+  zona uniforme la verità è isotropa: gli anelli la mediano sull'angolo gratis, il nucleo
+  con 5.000 particelle ci aggiunge rumore nella coda.
+Comando: scelta di α con uno script sul seme 7 (`map_coverage(n, 48, seed=7)` con
+`make_grid(alpha=…)`); `python -m sim.validate --coverage`; `python -m sim.baseline`
+(risultato in `out/phase-c2-kde.json`, 41 s).
+Risultato — scelta di α (copertura al 50% / al 90%, 48 ore, seme 7): quasi piatta. Cani
+lontani 0,47-0,50 / 0,874-0,883 da α = 0,5 a 2,0; gatto da appartamento 0,549 / 0,873-0,880;
+cane socievole sale da 0,899 a 0,94 con α = 2,0. Scelto **α = 1,0**.
+Risultato — C1 (seme 0, 50% / 90%): gatto da appartamento 0,557 / 0,892 (48 h) e 0,559 /
+0,892 (7 g); gatto libero 0,505 / 0,892 e 0,505 / 0,893; cane socievole 0,511 / 0,898 (48 h);
+cane diffidente 0,467 / 0,882 e 0,453 / 0,869; cane pauroso 0,481 / 0,874 e 0,486 / 0,876.
+Sul seme 35 dei test, con 2.500-45.000 verità per mappa: 50% fra 0,46 e 0,54, 90% fra
+0,86 e 0,91. Il 90% sta a 0,87-0,89 e non a 0,90 perché la regione si prende sulla massa
+della griglia, il ~98% di quella libera (il resto è oltre il rettangolo).
+Risultato — C2 (area prima della verità, mediana / 90° percentile in ettari; copertura al 90%):
+
+| Categoria (verità) | Anelli | Simulatore | Rapporto p50 · p90 | Copertura anelli · sim |
+|---|---|---|---|---|
+| tutte (8.534) | 327 / 53.230 | **143 / 22.120** | **0,44 · 0,42** | 0,94 · 0,87 |
+| gatto da appartamento | 6,3 / 324 | 1,6 / 149 | 0,26 · 0,46 | 0,95 · 0,87 |
+| gatto libero | 51 / 71.132 | 71 / 23.158 | 1,40 · 0,33 | 0,95 · 0,88 |
+| cane socievole (868; 12 casi senza particelle libere) | 2,3 / 10,8 | 2,1 / 10,7 | 0,94 · 1,00 | 0,94 · 0,91 |
+| cane diffidente | 5.415 / 28.664 | 3.398 / 34.205 | 0,63 · 1,19 | 0,92 · 0,84 |
+| cane pauroso | 7.628 / 58.723 | 3.171 / 50.506 | 0,42 · 0,86 | 0,94 · 0,88 |
+
+Il simulatore cerca meno area degli anelli sul 67% delle verità.
+Verdetto: **C2 superata**: su tutte le verità mediana e 90° percentile sotto gli anelli
+(0,44 e 0,42). C1 regge: la mappa è una probabilità calibrata per tutte le categorie.
+Previsioni: C1 giusta (tutte dentro 0,46-0,56 e 0,86-0,93 tranne il cane diffidente a 7
+giorni al 50%, 0,453, dentro l'errore: 574 verità); scelta di α **sbagliata** (piatta, non
+crescente: `lessons.md` #23); C2 **sbagliata** nel verdetto (previsto «non batte», batte:
+`lessons.md` #24), giusta su copertura (0,87), cane socievole (0,94); sbagliata per difetto
+su tutti i casi, gatto da appartamento e cani lontani (meglio del previsto), per eccesso sul
+gatto libero (1,40 contro 0,6-1,1). Due punti deboli per categoria, da capire: il gatto
+libero perde sulla mediana (il nucleo mette rumore nel cuore della sua distribuzione, dove
+gli anelli mediano sull'angolo) e il cane diffidente sul 90° percentile (1,19).
+
+### 2026-09-25 — C2″ riletta — misure senza gradini (`lessons.md` #26)
+La mediana degli anelli è instabile: il loro secondo confine sta al 50%. Sugli **stessi 200
+casi** (stessi semi) si leggono misure che non hanno gradini. Non c'era una previsione
+scritta prima: è una rilettura, non una misura nuova.
+Comando: script con `sim.baseline.run_case`, aree per verità (40 s).
+Risultato (area da cercare, ettari; ultime due colonne: quota di verità dove il simulatore
+cerca meno, media geometrica del rapporto simulatore / anelli):
+
+| Categoria | Anelli p25 / p50 / p75 / p90 / media | Simulatore p25 / p50 / p75 / p90 / media | Sim < anelli | Rapporto geometrico |
+|---|---|---|---|---|
+| tutte | 6,2 / 327 / 6.832 / 53.230 / 91.685 | 2,9 / 143 / 3.887 / 22.120 / 92.162 | 0,67 | **0,56** |
+| gatto da appartamento | 0,8 / 6,2 / 224 / 324 / 1.168 | 0,4 / 1,6 / 14 / 149 / 1.107 | 0,56 | 0,57 |
+| gatto libero | 2,6 / 51 / 1.056 / 71.132 / 343.837 | 4,4 / 71 / 1.402 / 23.159 / 346.797 | 0,80 | 0,33 |
+| cane socievole | 0,6 / 2,2 / 5,2 / 10,8 / 5,7 | 0,9 / 2,1 / 5,4 / 10,7 / 5,3 | 0,54 | 0,84 |
+| cane diffidente | 1.546 / 5.415 / 23.757 / 28.664 / 17.434 | 982 / 3.398 / 11.465 / 34.205 / 16.860 | 0,63 | 0,81 |
+| cane pauroso | 1.081 / 7.628 / 11.950 / 58.723 / 31.688 | 275 / 3.171 / 14.973 / 50.506 / 31.305 | 0,74 | 0,55 |
+
+Verdetto: il simulatore vince in **tutte** le categorie sulla media geometrica (0,33-0,84)
+e sulla quota (0,54-0,80); gatto libero e cane diffidente, che perdevano su un solo
+quantile, vincono qui. La **media aritmetica** è pari (92.000 contro 92.000 ha): la fanno
+le poche verità lontanissime, fuori da tutte e due le mappe, che costano uguale.
+
+### 2026-09-25 — A5 — gatti a rischi in competizione (`lessons.md` #8)
+Il gatto si legge al primo dei suoi eventi: a casa, raccolto, morto (dal motore) o trovato
+fuori da chi lo cerca (solo nella taratura, rischio uguale a ogni distanza, costante nei
+tratti 0-7, 7-30, 30-61 giorni). Si tarano insieme la curva dei trovati vivi di Huang, le
+quote per luogo (20% a casa, 11% in casa d'altri) e i quantili della distanza.
+Previsione, scritta prima di lanciare (conto a mano: sopravvivenza media nei tre tratti
+0,8 / 0,55 / 0,45, il × 2 notturno di `h_home` e il suo calo dopo 30 giorni):
+- `h_home`: gatto casa 1,1-1,8 · 10⁻⁴ /h (da 8,8 · 10⁻⁴: 5-8 volte più basso), gatto libero
+  1,0-1,6 · 10⁻⁴ (da 7,5 · 10⁻⁴: 5-7 volte). `h_pickup` 0,9-1,8 · 10⁻⁴ (da 9,3 · 10⁻⁴).
+- Rischio della ricerca: 2-3 · 10⁻³ /h nella prima settimana, 1-5 · 10⁻⁴ fino al giorno 30,
+  0-2 · 10⁻⁴ dopo: nell'ultimo mese i ritorni a casa e le raccolte bastano quasi da soli.
+- A: gatto casa accettato (errore ≤ 0,10); gatto libero fuori come prima (0,18-0,28).
+  Ancora e passo entro ±20% di A4: le quote per luogo non cambiano, cambia solo l'ora in cui
+  si legge chi torna a casa.
+- B1: mediana mista 60-85 m (resta fuori); p25, p75 ed entro 500 m reggono.
+- B2 (il motore, senza ricerca, misto 28:46): HOME entro 7 / 30 / 61 giorni 0,02-0,04 /
+  0,08-0,14 / 0,13-0,20; HOME o HELD 0,03-0,06 / 0,12-0,20 / 0,20-0,30: sotto i trovati
+  (0,34 / 0,50 / 0,56), lo `xfail` stretto diventa rosso. Controllo debole: la curva di
+  Huang ora è un bersaglio della taratura (`lessons.md` #9).
+- C1 invariata entro il rumore (0,46-0,56 e 0,86-0,93). C2 regge: rapporto p50 e p90
+  0,35-0,55 su tutte, media geometrica 0,50-0,65, quota «cerca meno» 0,62-0,72.
+Comando: `python -m sim.calibrate cat_indoor` e `cat_outdoor`, `python -m sim.validate`,
+`python -m sim.validate --coverage`, `python -m sim.baseline`.
+Risultato — A5 (`out/a5-calibrate.txt`): `h_home` 1,39 · 10⁻⁴ (gatto casa, 6,3 volte più basso)
+e 1,43 · 10⁻⁴ (gatto libero, 5,3 volte); `h_pickup` 1,38 e 1,51 · 10⁻⁴. Ricerca 2,26 / 0,28 /
+0,009 · 10⁻³ /h (casa) e 2,25 / 0,30 / 0,033 · 10⁻³ (libero). Quote dalle letture: a casa
+0,197 e 0,196, raccolti 0,108 e 0,117, trovati vivi 0,567 e 0,566. Gatto casa 9,4 / 40,6 /
+142,4 m, errore 0,05, **accettato** (ancora 49,5 m, dispersione 2,1, passo 25 m). Gatto
+libero 18,0 / 242,6 / 1.457,6 m, errore 0,283, non accettato (ancora 540 m, dispersione 2,2,
+passo **3 m**, era 1,8).
+Risultato — B (`out/a5-validate.json`): B1 11,0 / 72,1 / 462,6 m (errori 0,225 / 0,442 /
+0,075), entro 500 m 0,759; su altri semi il p25 va da 10,5 a 11,0, e con 65.000 gatti
+l'intervallo a 4 errori standard è 9,3-11,7 contro il limite di 10,8: **al limite**, non
+dimostrabile. B2, misto 28:46: HOME 0,030 / 0,118 / 0,170, HOME o HELD 0,045 / 0,172 /
+0,266 contro 0,34 / 0,50 / 0,56: passa, anche il limite largo. B3 e B4 invariati (i cani
+non sono cambiati).
+Risultato — C1 (`out/a5-coverage.json`): gatto casa 0,551 / 0,893 (48 h) e 0,551 / 0,891
+(7 g); gatto libero 0,501 / 0,891 e 0,497 / 0,888; cani invariati. C2 (`out/a5-baseline.json`,
+8.534 verità): anelli 422 / 54.983 ha, simulatore 164 / 23.180; rapporto **0,39 · 0,42**,
+media geometrica 0,55, cerca meno sul 67% delle verità, copertura al 90% 0,94 · 0,87. Gatto
+casa 0,30 · 0,48 (geometrica 0,55), gatto libero 1,41 · 0,34 (0,33).
+Verdetto: **il difetto #8 è tolto**: B2 passa con i rischi 5-6 volte più bassi, e C2 regge
+(0,39 · 0,42). Previsioni giuste: i rischi (tutti e sei i numeri), B2 (sei su sei), C1, C2,
+la mediana di B1, il gatto casa. Sbagliate: il gatto libero peggiora un poco oltre
+l'intervallo (0,283 contro 0,18-0,28), il suo passo sale da 1,8 a 3 m (previsto entro
+±20%), il p25 di B1 passa da 10,1 a 10,5-11,0 m, al limite (previsto «regge»). Nei test:
+lo `xfail` di B2 è tolto; il p25 del gatto casa si prova a 100.000 gatti (`--runslow`); il
+p25 di B1 diventa uno `xfail` stretto (`lessons.md` #28, #29).

@@ -38,9 +38,8 @@ Una simulazione Monte Carlo (`matematica.md`, `simulatore.md`):
 1. Da casa partono migliaia di animali virtuali.
 2. Ogni ora si muovono con regole per categoria: il gatto resta entro poche case e si
    nasconde; il cane pauroso scappa lontano; il cane socievole va verso le persone.
-3. La zona cambia le regole: palazzi, villette, centro, campagna, parchi, il piano di
-   casa. Da v0.1 la mappa della zona viene da OpenStreetMap: strade, fiumi, ferrovie,
-   edifici, verde.
+3. Il luogo cambia le regole: edifici e altezze, il piano di casa, giardini, muri, scale,
+   strade, dislivelli, presi da dati aperti (il luogo in 3D).
 4. Ogni ora una parte viene «raccolta» da qualcuno: più spesso dove c'è gente, più spesso
    con il collare.
 5. Dove ne restano di più, la mappa è scura. La quota «raccolti» dice quando smettere di
@@ -51,21 +50,24 @@ Tre uscite, non un numero:
 - «Entro questo raggio c'è metà delle probabilità; entro quest'altro, nove su dieci.»
 - «Da oggi conviene chiamare: canili e veterinari entro N km.»
 
-Le regole partono dagli studi. Ogni ritrovamento vero le corregge: dove diceva la
-simulazione contro dove era davvero.
+Le regole vengono dagli studi e dai dati aperti: ogni numero ha la sua fonte, ogni
+previsione si scrive prima di misurarla.
 
 ## Perché sta in piedi da solo
 
 - Serve già al primo utente: la mappa aiuta anche se la usa una persona sola.
 - Non dipende da nessuna piattaforma e da nessun dato che arrivi dopo.
-- Il genoma lo costruiamo noi: ogni ritrovamento chiuso è un dato che oggi non raccoglie
-  nessuno. Dopo cento casi è la prima banca dati del genere (per le persone esiste ISRID,
-  per gli animali no).
+- Il genoma sono gli studi: ricerche sparse (distanze, tempi, temperamento, movimento
+  GPS, dati dei canili) lette insieme per la prima volta in un solo modello, ciascuna per
+  il pezzo che misura.
 
 ## Ordine di costruzione
 
 1. **Il simulatore**, provato contro i numeri pubblicati prima di qualsiasi utente.
-2. **La mappa della zona** da OpenStreetMap, provata sui ritrovamenti veri.
+2. **Il luogo in 3D, al metro**: edifici con le altezze, il piano, giardini, muri, tetti,
+   scale, strade, dislivelli, misurati in automatico da dati aperti. Quanto lontano va
+   l'animale lo dicono gli studi; dove, fra i posti possibili, lo dice il 3D. Le regole
+   fini vengono dagli studi sul movimento dei gatti; le distanze restano quelle tarate.
 3. **Il sito**: si inseriscono animale, casa, zona e ora; esce la mappa.
 
 ## La forma: un sito, non un'app

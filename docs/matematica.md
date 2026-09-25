@@ -13,7 +13,7 @@ validati per persone disperse e animali selvatici. Le fonti complete stanno in
 | **Ecologia del movimento** | passeggiate casuali correlate con pause, code «grasse» (i salti lunghi rari), attrazione verso un nascondiglio (Ornstein-Uhlenbeck) | Tilles 2016; Patterson 2017 | in uso |
 | **Analisi di sopravvivenza** | la curva «probabilità che sia ancora libero dopo N giorni», con uscite diverse: raccolto, tornato, morto | Huang 2018 per i gatti | in uso (rischi orari) |
 | **Rischi in competizione** | le uscite dallo stato libero si tarano insieme, all'ora dell'evento, sulla curva dei ritrovamenti | — | da provare (`lessons.md` #8) |
-| **Stima della densità a nucleo adattiva** | da punti a mappa: ogni particella si allarga quanto la distanza dalle vicine, stretta dove sono fitte, larga dove sono rade | — | da provare (C1, C2) |
+| **Stima della densità a nucleo adattiva** | da punti a mappa: ogni particella si allarga quanto la distanza dalla 10ª vicina, stretta dove sono fitte, larga dove sono rade; si calcola per classi di σ su griglie via via più rade | Breiman, Meisel & Purcell 1977 (da verificare alla fonte) | in uso: la mappa (C1 e C2 superate, `MISURE.md`) |
 | **Calibrazione della previsione** | una mappa è una probabilità solo se la verità cade nel suo 90% nove volte su dieci; si misura con verità estratte dallo stesso modello | — | in uso (C1) |
 | **Intervalli dei quantili senza ipotesi** | l'intervallo di un quantile dalle statistiche d'ordine (binomiale): un test passa solo se tutto l'intervallo sta nella tolleranza | — | in uso (`tests/conftest.py`) |
 | **Valori estremi** (Gumbel) | la coda delle distanze: fino a dove può arrivare. In Python `scipy.stats.genextreme` | — | da provare |
@@ -22,10 +22,10 @@ validati per persone disperse e animali selvatici. Le fonti complete stanno in
 
 ```
 categorie (Koester → animali)
-   → movimento (ecologia) dentro la zona (OpenStreetMap da v0.1)
+   → movimento (ecologia) dentro il luogo in 3D
    → simulazione Monte Carlo, uscite in competizione (sopravvivenza)
    → mappa (densità a nucleo) · raggio · «chiama i canili»
-provata contro gli anelli (C) e sui ritrovamenti veri (D): ogni ritrovamento corregge
+provata contro i numeri pubblicati (A, B) e contro gli anelli (C)
 ```
 
 ## Cosa non è vago

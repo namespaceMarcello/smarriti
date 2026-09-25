@@ -149,6 +149,9 @@ vivono nei gruppi Facebook, dai veterinari e sui volantini. È il vuoto che riem
 | **Austin Animal Center** — Intakes + Outcomes (dal 2013) | ogni ingresso con `Found Location`, tipo (randagio), esito (`Return to Owner`) | tempi di rientro, stagionalità, quota «raccolti» | https://data.austintexas.gov/Health-and-Community-Services/Austin-Animal-Center-Intakes/pyqf-r2dc |
 | **Sonoma County** — Intake and Outcome | >20.000 righe, ingressi/uscite | come sopra, altra città | https://data.sonomacounty.ca.gov/Government/Animal-Shelter-Intake-and-Outcome/924a-vesw |
 | **Bloomington** — Animal Shelter Animals | ingressi/uscite | come sopra, città piccola | https://data.bloomington.in.gov/dataset/Animal-Shelter-Animals/up5q-gxym |
+| **OpenStreetMap** (Overpass) | edifici con `height` o `building:levels`, muri e muri di contenimento, scale, strade, verde | il luogo in 3D. Misurato il 2026-09-25 nel raggio di 300 m da piazza Vanvitelli (Vomero): 231 edifici, 109 con l'altezza, 45 con i piani; 19 scale, 18 muri; **3 giardini** (i giardini privati quasi mancano). Sul luogo di prova (Napoli, collina; 450 m): 478 edifici, **nessuno** con altezza o piani, 1 giardino, 1 muro: le altezze vanno prese altrove | https://overpass-api.de |
+| **GlobalBuildingAtlas** (TUM, ESSD 2025) | sagome e altezze di 2,68 miliardi di edifici nel mondo (LoD1), altezze anche come raster da 3 m; errore quadratico 1,5-8,9 m secondo la regione | le altezze che mancano a OSM sul luogo di prova. Licenza da leggere prima di usarlo (il progetto è AGPL) | https://github.com/zhu-xlab/GlobalBuildingAtlas · https://essd.copernicus.org/articles/17/6647/2025/ |
+| **LiDAR del Ministero dell'Ambiente** (PST, Campania) | DTM e DSM a 1 m (terreno e superficie: DSM − DTM = altezza di edifici e alberi), CC BY 4.0 | il luogo al metro: dislivelli, muri, alberi. Copertura: fasce dei corsi d'acqua e aree a rischio, da verificare sul luogo di prova. Si chiede per email a datipst@mase.gov.it (area, uso, prodotto) | https://gn.mase.gov.it/portale/en/data-distribution-services-pst · https://data.europa.eu/data/datasets/m_amte-299fn3-9c373991-bc5b-4435-a191-e586f01d4fbc |
 | **Meta Content Library** | tutti i post pubblici di Facebook, Instagram e Threads, **gruppi pubblici compresi**: testo, foto, data | misurare quanti smarriti hanno un avvistamento non collegato; tarare la mappa | https://developers.facebook.com/docs/content-library-and-api/content-library/ |
 
 Meta Content Library: solo per ricerca, tramite università o ente non profit di ricerca;
@@ -188,4 +191,5 @@ Non esiste, in nessuna lingua trovata, un dataset con **punto di smarrimento, pu
 ritrovamento, tempo, temperamento e come è stato trovato** per gli animali di casa. Il più
 vicino è Huang 2018 (gatti, dichiarato) e Kremer 2021 (cani, misurato ma solo chi passa dal
 canile). Per le persone esiste ISRID con 150.000 casi. La banca dati equivalente per gli
-animali è il valore del progetto: si raccoglie a ogni caso chiuso.
+animali non c'è: per questo il modello mette insieme gli studi che esistono, ciascuno per il
+pezzo che misura.

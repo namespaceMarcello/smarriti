@@ -124,7 +124,10 @@ def summarize(rows: list[dict]) -> dict:
     ss = np.concatenate([r["sim"]["area_ha"] for r in rows])
     out["sim_over_rings_p50"] = round(out["sim"]["area_ha_p50"] / max(out["rings"]["area_ha_p50"], 1e-9), 3)
     out["sim_over_rings_p90"] = round(out["sim"]["area_ha_p90"] / max(out["rings"]["area_ha_p90"], 1e-9), 3)
+    # measures with no step (lessons.md #26): the rings' median jumps when their 50% border
+    # sits on the median truth; a per-truth comparison does not
     out["sim_smaller_share"] = round(float(np.mean(ss < rs)), 3)
+    out["sim_over_rings_geomean"] = round(float(np.exp(np.mean(np.log(ss / rs)))), 3)
     return out
 
 

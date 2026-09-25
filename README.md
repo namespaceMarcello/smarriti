@@ -14,7 +14,7 @@ Given the animal, its home, the kind of place it lives in and the time it was lo
 simulator releases thousands of virtual animals from home and moves them hour by hour with
 rules per category: an indoor cat hides within a few houses, a fearful dog runs far, a
 friendly dog walks up to people. The surroundings change the rules (apartment blocks,
-houses with gardens, city centre, countryside, parks). Every hour some are picked up by
+houses with gardens, city centre, countryside, parks; next, the place itself in 3D). Every hour some are picked up by
 someone. Where the most remain, the map is dark. Nothing is fed in after the loss: only
 maths and published data.
 
@@ -47,8 +47,11 @@ like any other.
 
 ## Status
 
-Simulator v0, September 2026: it runs and is calibrated on the published distances; it
-does not yet beat the simpler ring model (`docs/MISURE.md`). The documentation is in
+Simulator v0, September 2026: calibrated on the published distances, and its map beats
+the simpler ring model (on synthetic cases the area to search before reaching the animal
+is 0.39 times the rings' at the median, 0.42 at the 90th percentile; `docs/MISURE.md`).
+Next: the place in 3D, from open data (buildings and their heights, the floor, gardens,
+walls, steps, streets, slopes), so that the map knows not only how far but where. The documentation is in
 Italian for now: `docs/progetto.md` (what we build), `docs/simulatore.md` (the model),
 `docs/matematica.md`, `docs/riferimenti.md` (studies and data), `docs/STATO.md`.
 

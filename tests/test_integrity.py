@@ -10,10 +10,10 @@ import numpy as np
 import pytest
 
 from sim.categories import get, is_night, mixture
-from sim.engine import DEAD, HOME, LOOSE, NIGHT_ACTIVITY, Simulation, allocate
+from sim.engine import DEAD, HELD, HOME, LOOSE, NIGHT_ACTIVITY, Simulation, allocate
 from sim.environment import ZONES, Environment, Patch
 from sim.case import Projection, parse_case
-from sim.outputs import weighted_quantile
+from sim.outputs import _level, _smooth, weighted_quantile
 
 STILL = dict(p_move_day=0.0, p_move_night=0.0, h_pickup=0.0, h_home=0.0, h_dead=0.0)
 
@@ -61,6 +61,21 @@ def test_weighted_quantile_matches_repetition():
     for q in (0.05, 0.3, 0.6, 0.95):
         ref = np.quantile(np.repeat(vals, counts), q)
         assert abs(weighted_quantile(vals, counts.astype(float), q) - ref) <= 10.0
+
+
+def test_baseline_summary_share_and_geometric_ratio():
+    """lessons.md #26: per truth, the share where the simulator searches less and the
+    geometric mean of sim / rings, exact on a hand-made pair of cases."""
+    from sim.baseline import summarize
+
+    def row(rings, sim):
+        n = len(rings)
+        return {m: {"area_ha": np.array(a, float), "in_hpd50": np.zeros(n, bool), "in_hpd90": np.ones(n, bool)}
+                for m, a in (("rings", rings), ("sim", sim))}
+
+    s = summarize([row([10, 100], [5, 400]), row([1, 50], [1, 25])])
+    assert s["sim_smaller_share"] == 0.5  # 5 < 10 and 25 < 50; 400 > 100 and 1 == 1 do not count
+    assert s["sim_over_rings_geomean"] == round((0.5 * 4 * 1 * 0.5) ** 0.25, 3)
 
 
 def test_night_boundaries():
@@ -215,3 +230,83 @@ def test_determinism_and_seed_sensitivity():
     for s in (a, b, c):
         s.run(48)
     assert np.array_equal(a.x, b.x) and not np.array_equal(a.x, c.x)
+
+
+
+def centred(s):
+    """A square grid for one kernel of sigma s, and a position on a cell centre at every level."""
+    f = 2 ** _level(s)
+    n = 2 * f * (int(8 * s / (2 * f)) + 8)
+    return n, n / 2 + (0.5 if f == 1 else f / 2)
+
+
+@pytest.mark.parametrize("s", [3.0, 13.0, 150.0])
+def test_kernel_matches_the_exact_gaussian(s):
+    """One particle of sigma s cells, filtered on the fine grid (3) or on grids 2 and 32 times
+    coarser and interpolated back: the map is the Gaussian integrated on the cells. The filter
+    samples the kernel at cell centres instead of integrating it (variance short by 1/12 cell^2,
+    peak off by ~1/(6 s^2) in 2-D); the split between two classes and the interpolation add
+    at most 2%."""
+    from scipy.stats import norm
+
+    n, c = centred(s)
+    got = _smooth((n, n), np.array([c]), np.array([c]), np.array([1.0]), np.array([s]))
+    e = np.arange(n + 1)
+    exact = np.outer(np.diff(norm.cdf(e, c, s)), np.diff(norm.cdf(e, c, s)))
+    assert abs(got.sum() - 1) < 2e-3
+    assert abs(got.max() / exact.max() - 1) < 1 / (6 * s**2) + 0.02 and np.abs(got - exact).sum() < 0.05
+
+
+@pytest.mark.parametrize("s", [0.6, 3.4, 11.0, 70.0])
+def test_sigma_between_two_classes_keeps_its_variance(s):
+    """The weight is split between the classes around s so that the variance is s^2 (+ the
+    binning, 1/12 cell^2 per level cell, here 0 because the particle sits on a cell centre)."""
+    n, c = centred(s)
+    got = _smooth((n, n), np.array([c]), np.array([c]), np.array([1.0]), np.array([s]))
+    px = got.sum(axis=0) / got.sum()
+    var = np.sum(px * (np.arange(n) + 0.5 - c) ** 2)
+    assert abs(np.sqrt(var) / s - 1) < 0.03
+
+
+# --- calibration of the cats: competing risks (lessons.md #8) ---------------------------
+
+RATES = [2e-3, 3e-4, 1e-4]  # search hazards per hour, the order of those solved in A5
+
+
+def test_search_hours_follow_the_piecewise_hazard():
+    """P(found by day 7 / 30 / never by 61) against 1 - exp(-L); n = 200,000, 4 SE < 0.005."""
+    from sim.calibrate import CAT_HORIZON_H, search_cum, search_hours
+
+    n = 200_000
+    t = search_hours(RATES, n, np.random.default_rng(40))
+    for p, exact in ((np.mean(t <= 168), 1 - np.exp(-RATES[0] * 168)),
+                     (np.mean(t <= 720), 1 - np.exp(-search_cum(RATES, 720))),
+                     (np.mean(t > CAT_HORIZON_H), np.exp(-search_cum(RATES, CAT_HORIZON_H)))):
+        assert abs(p - exact) <= 4 * np.sqrt(exact * (1 - exact) / n)
+
+
+def test_solved_search_puts_the_found_curve_on_huang():
+    from sim.calibrate import HUANG_FOUND, cat_events, found_by, solve_search
+
+    # fixed hazards, not calibrated.json: with A4's h_home the engine alone overshoots day 30
+    state, t_end = cat_events(replace(get("cat_indoor"), h_home=1.4e-4, h_pickup=1.4e-4), 3000, seed=41)
+    rates = solve_search(state, t_end)
+    for day, target in HUANG_FOUND[1:]:
+        assert abs(sum(found_by(state, t_end, rates, day).values()) - target) < 1e-6
+
+
+def test_sampled_readings_match_the_exact_shares(monkeypatch):
+    """The closed form that solves the hazards (found_by) and the sampled readings that give
+    the distances describe the same cats: found by day 61, at home, held. Two runs of 5,000,
+    tolerance 4 SE of the difference."""
+    import sim.calibrate as cal
+
+    cat = replace(get("cat_indoor"), h_home=1.4e-4, h_pickup=1.4e-4)
+    monkeypatch.setitem(cal._SEARCH_CACHE, cal.search_key(cat), RATES)  # not the calibrated ones
+    exact = cal.shares(*cal.cat_events(cat, 5000, seed=42), RATES)
+    d, state = cal.cat_readings([cat], 5000, seed=43)[0]
+    found = ~np.isnan(d)
+    got = {"found": np.mean(found), "home": np.mean(state[found] == HOME), "held": np.mean(state[found] == HELD)}
+    for k, n in (("found", 5000), ("home", found.sum()), ("held", found.sum())):
+        assert abs(got[k] - exact[k]) <= 4 * np.sqrt(2 * exact[k] * (1 - exact[k]) / n), k
+    assert np.all(d[state == HOME] == 0) and np.all(np.isnan(d[state == DEAD]))

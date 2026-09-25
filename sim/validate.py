@@ -33,16 +33,18 @@ KREMER_WITHIN_5D = 0.90
 ICAD_SHELTER = {"dog": 0.04, "cat": 0.005}
 
 
-def b1_cat_mixture(seed: int = 0, n: int = 20_000) -> dict:
+def b1_distances(seed: int = 0, n: int = 20_000) -> np.ndarray:
+    """Distances of the cats found alive, indoor and outdoor mixed 164:150."""
     names = list(CAT_TARGETS)
     readings = cat_readings([get(nm) for nm in names], n, seed)
     rng = np.random.default_rng(seed + 3)
-    total = sum(FOUND_ALIVE_N.values())
-    parts = []
-    for nm, (d, _) in zip(names, readings):
-        d = d[~np.isnan(d)]
-        parts.append(rng.choice(d, int(n * FOUND_ALIVE_N[nm] / total), replace=False))
-    d = np.concatenate(parts)
+    found = [d[~np.isnan(d)] for d, _ in readings]  # about 56% of the cats are found alive by day 61
+    scale = min(len(f) / FOUND_ALIVE_N[nm] for f, nm in zip(found, names))
+    return np.concatenate([rng.choice(f, int(scale * FOUND_ALIVE_N[nm]), replace=False) for f, nm in zip(found, names)])
+
+
+def b1_cat_mixture(seed: int = 0, n: int = 20_000) -> dict:
+    d = b1_distances(seed, n)
     q = np.percentile(d, [25, 50, 75])
     return {"target_p25_p50_p75": HUANG_OVERALL, "got": [round(v, 1) for v in q],
             "rel_err": [round(abs(g - t) / t, 3) for g, t in zip(q, HUANG_OVERALL)],

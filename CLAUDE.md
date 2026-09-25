@@ -3,13 +3,13 @@
 
 Simulatore matematico open source che predice **dove si trova adesso** un animale
 smarrito: migliaia di animali virtuali che partono da casa e si muovono nella zona, tarati
-sugli studi e poi sui casi reali. **Solo matematica**: dopo la perdita non riceve niente
+sugli studi pubblicati e sui dati aperti. **Solo matematica**: dopo la perdita non riceve niente
 (né avvistamenti, né ricerche, né volantini). **Non è un'app**: un sito che si apre da un
-link. Nato il 2026-09-25. Il simulatore v0 esiste (`sim/`); la fase C non è superata e si
-decide con Marcello (`docs/STATO.md`).
+link. Nato il 2026-09-25. Il simulatore v0 esiste (`sim/`) e con la mappa lisciata batte
+gli anelli (fase C); i prossimi passi sono in `docs/STATO.md`.
 
 **Lo spirito: leggere il problema come un genoma** (Marcello). Ogni studio, ogni
-ritrovamento chiuso è un dato da sequenziare, dove gli altri lo buttano.
+dataset aperto è un dato da sequenziare, dove gli altri lo leggono da solo.
 Misurare prima di credere; scrivere la previsione prima di misurare; inventare la prossima
 idea dai numeri. Una premessa che dà zero è una scoperta: si scrive, si chiude, avanti.
 
@@ -44,7 +44,8 @@ v0.1), codice e commenti in inglese. Il sito: da decidere (`docs/STATO.md`).
 - Le domande si fanno prima di iniziare, non a metà.
 - **Ogni errore e ogni cosa che fallisce** va subito in `docs/lessons.md`: cosa, perché,
   la regola che ne esce, il controllo che adesso lo impedisce (un test, se si può).
-- Test: `pytest -q` in circa 30 s, tre famiglie (integrità, pressione, ipotesi). Un test
+- Test: `pytest -q` in circa 40 s, tre famiglie (integrità, pressione, ipotesi); quelli che
+  per i 4 errori standard chiedono troppi campioni sono `slow` (`--runslow`). Un test
   statistico passa solo se l'intervallo a 4 errori standard sta nella tolleranza; un
   fallimento noto è un `xfail` stretto che cita la misura. Dopo ogni modifica al motore si
   rifà la taratura (`lessons.md` #17).
@@ -87,11 +88,14 @@ v0.1), codice e commenti in inglese. Il sito: da decidere (`docs/STATO.md`).
 
 ```bash
 .venv/Scripts/python -m sim cases/esempio-gatto.json --now 2026-09-22T08:00 --out out/   # mappa, stati, consigli
-.venv/Scripts/python -m sim.calibrate all         # fase A (o start, cat_indoor, cat_outdoor, dogs): ~3 min
+.venv/Scripts/python -m sim.calibrate all         # fase A (o start, cat_indoor, cat_outdoor, dogs): ~5 min
 .venv/Scripts/python -m sim.validate              # fase B; --coverage per C1 (mappa calibrata?)
-.venv/Scripts/python -m sim.baseline              # fase C: anelli contro simulatore, ~50 s
-.venv/Scripts/python -m pytest -q                 # ~30 s
+.venv/Scripts/python -m sim.baseline              # fase C: anelli contro simulatore, ~45 s
+.venv/Scripts/python -m sim.compare               # immagine prima / anelli / ora (out/confronto-prima-dopo.png), 2 s
+.venv/Scripts/python -m pytest -q                 # ~40 s; --runslow aggiunge i test lenti (~20 s)
 ```
+
+Per Marcello: doppio clic su `vedi-la-mappa.bat` (fuori da git) rifà e apre le mappe.
 
 Ambiente: `py -3.12 -m venv .venv` e `pip install numpy scipy matplotlib pytest`.
 
@@ -101,10 +105,12 @@ Ambiente: `py -3.12 -m venv .venv` e `pip install numpy scipy matplotlib pytest`
 
 - Ogni numero nei documenti ha la fonte accanto. Niente numeri a memoria.
 - Prima di ogni misura si scrive la previsione; il risultato si registra anche se dà zero.
-- Il modello si tara sui casi reali, non sulle opinioni: ogni ritrovamento è un dato.
+- Il modello si tara sugli studi pubblicati e sui dati aperti, non sulle opinioni: niente
+  casi raccolti da noi (Marcello, 2026-09-26).
 - Il simulatore predice solo dai dati del caso (animale, casa, zona, ora): nessun ingresso
   dopo la perdita, nessun volantino (Marcello, 2026-09-25).
-- I dati dei proprietari non sono mai pubblici.
+- I dati dei proprietari non sono mai pubblici: stanno in `privato/` (fuori da git), mai
+  nei documenti né nei test.
 
 ---
 
