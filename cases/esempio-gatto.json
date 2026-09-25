@@ -1,0 +1,23 @@
+{
+  "category": "cat_indoor",
+  "home": {
+    "lat": 40.85,
+    "lon": 14.27
+  },
+  "lost_at": "2026-09-20T19:00",
+  "collar": false,
+  "area": {
+    "zone": "apartment_blocks",
+    "floor": 3,
+    "patches": [
+      {
+        "zone": "park",
+        "center": {
+          "lat": 40.8512,
+          "lon": 14.2688
+        },
+        "radius_m": 120
+      }
+    ]
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "category": "dog_fearful",
+  "home": {
+    "lat": 40.84,
+    "lon": 14.25
+  },
+  "lost_at": "2026-09-19T17:00",
+  "collar": true,
+  "area": {
+    "zone": "suburban_houses"
+  }
+}

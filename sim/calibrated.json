@@ -1,0 +1,33 @@
+{
+  "cat_indoor": {
+    "anchor_med_m": 49.5,
+    "anchor_sigma": 2.0,
+    "step_flight": 25.0,
+    "step_settled": 25.0,
+    "h_home": 0.000875,
+    "h_pickup": 0.000934
+  },
+  "cat_outdoor": {
+    "anchor_med_m": 540.0,
+    "anchor_sigma": 2.2,
+    "step_flight": 1.8,
+    "step_settled": 1.8,
+    "h_home": 0.000753,
+    "h_pickup": 0.000932
+  },
+  "dog_friendly": {
+    "step_flight": 25.5,
+    "step_settled": 25.5,
+    "h_home": 0.004352
+  },
+  "dog_wary": {
+    "step_flight": 595.0,
+    "step_settled": 595.0,
+    "h_home": 0.002176
+  },
+  "dog_fearful": {
+    "step_flight": 1190.0,
+    "step_settled": 238.0,
+    "h_home": 0.000435
+  }
+}

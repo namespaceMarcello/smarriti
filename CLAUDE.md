@@ -1,13 +1,15 @@
 <!-- preferenze: 83d8c143 -->
 # Smarriti (nome provvisorio)
 
-Motore open source che dice a chi ha perso un animale **dove cercarlo adesso**: una
-simulazione di migliaia di animali virtuali, aggiornata da avvistamenti, ricerche già fatte
-e volantini, tarata sui casi reali. **Non è un'app**: un sito che si apre da un link o dal
-QR del volantino. Nato il 2026-09-25; non c'è ancora codice.
+Simulatore matematico open source che predice **dove si trova adesso** un animale
+smarrito: migliaia di animali virtuali che partono da casa e si muovono nella zona, tarati
+sugli studi e poi sui casi reali. **Solo matematica**: dopo la perdita non riceve niente
+(né avvistamenti, né ricerche, né volantini). **Non è un'app**: un sito che si apre da un
+link. Nato il 2026-09-25. Il simulatore v0 esiste (`sim/`); la fase C non è superata e si
+decide con Marcello (`docs/STATO.md`).
 
-**Lo spirito: leggere il problema come un genoma** (Marcello). Ogni avvistamento, ogni
-strada già girata, ogni ritrovamento è un dato da sequenziare, dove gli altri lo buttano.
+**Lo spirito: leggere il problema come un genoma** (Marcello). Ogni studio, ogni
+ritrovamento chiuso è un dato da sequenziare, dove gli altri lo buttano.
 Misurare prima di credere; scrivere la previsione prima di misurare; inventare la prossima
 idea dai numeri. Una premessa che dà zero è una scoperta: si scrive, si chiude, avanti.
 
@@ -40,7 +42,13 @@ v0.1), codice e commenti in inglese. Il sito: da decidere (`docs/STATO.md`).
 - Resoconto a Marcello in due punti: cosa è stato implementato, e come provarlo. Il perché
   delle decisioni e il racconto vanno in `docs/STATO.md` o `docs/archivio/FATTO.md`.
 - Le domande si fanno prima di iniziare, non a metà.
-- Lavoro visivo (UI, mappa, volantino): più varianti come PNG o GIF numerati, si aspetta
+- **Ogni errore e ogni cosa che fallisce** va subito in `docs/lessons.md`: cosa, perché,
+  la regola che ne esce, il controllo che adesso lo impedisce (un test, se si può).
+- Test: `pytest -q` in circa 30 s, tre famiglie (integrità, pressione, ipotesi). Un test
+  statistico passa solo se l'intervallo a 4 errori standard sta nella tolleranza; un
+  fallimento noto è un `xfail` stretto che cita la misura. Dopo ogni modifica al motore si
+  rifà la taratura (`lessons.md` #17).
+- Lavoro visivo (UI, mappa): più varianti come PNG o GIF numerati, si aspetta
   la scelta, poi si implementa. Per logica, modello e bugfix: scegli, costruisci, consegna.
 
 ### Prima di ogni commit: documentare
@@ -51,6 +59,7 @@ v0.1), codice e commenti in inglese. Il sito: da decidere (`docs/STATO.md`).
 | un pezzo di lavoro finito | `docs/archivio/FATTO.md` — 2-5 righe: cosa, come si prova |
 | un numero preso da uno studio, un dataset trovato | `docs/riferimenti.md` — con la fonte accanto |
 | una previsione o una misura del modello | `docs/MISURE.md` — la previsione **prima** di lanciare, il risultato dopo, anche se negativo |
+| un errore, una cosa fallita | `docs/lessons.md` — una riga: cosa, perché, regola, controllo |
 | un parametro, una regola o un'uscita del simulatore | `docs/simulatore.md` — si corregge la riga, non si appende |
 | un concetto matematico usato, provato o scartato | `docs/matematica.md` |
 | il prodotto: cosa fa, il giro, cosa non facciamo | `docs/progetto.md` |
@@ -62,14 +71,29 @@ v0.1), codice e commenti in inglese. Il sito: da decidere (`docs/STATO.md`).
 
 | Domanda su… | Apri |
 |---|---|
-| cosa costruiamo, il giro volantino → QR → mappa, i due stati dell'animale, cosa non facciamo | `docs/progetto.md` |
+| cosa costruiamo, i due stati dell'animale, l'ordine di costruzione | `docs/progetto.md` |
 | numeri sugli animali smarriti (distanze, giorni, percentuali), dataset aperti, cosa manca | `docs/riferimenti.md` §A, §B, §C |
-| filtro particellare, teoria della ricerca, profilazione geografica, valori estremi, come si incastrano | `docs/matematica.md` |
-| **come si costruisce il simulatore**: stati, movimento, categorie e parametri iniziali, prove, POD, uscite, fasi di verifica, struttura dei file, quando è finito | `docs/simulatore.md` |
+| simulazione Monte Carlo, anelli di Koester, sopravvivenza, densità a nucleo, calibrazione, come si incastrano | `docs/matematica.md` |
+| **come funziona il simulatore**: stati, movimento, zona, categorie e parametri, taratura, uscite, fasi di verifica, struttura dei file, formato del caso | `docs/simulatore.md` |
 | previsioni e misure fatte, in ordine | `docs/MISURE.md` |
+| errori e fallimenti, con la regola e il controllo che ne sono usciti | `docs/lessons.md` |
 | decisioni prese, problemi aperti, prossimi passi | `docs/STATO.md` |
 | cosa è già stato fatto | `docs/archivio/FATTO.md` |
-| TiTrovo, l'app già costruita (volantino PDF, QR sul collare, avvistamenti, Supabase) | `C:\Users\marce\Desktop\IoTiTrovo\CLAUDE.md` |
+| TiTrovo, l'app separata (solo riferimento per le query geografiche) | `C:\Users\marce\Desktop\IoTiTrovo\CLAUDE.md` |
+
+---
+
+## Comandi
+
+```bash
+.venv/Scripts/python -m sim cases/esempio-gatto.json --now 2026-09-22T08:00 --out out/   # mappa, stati, consigli
+.venv/Scripts/python -m sim.calibrate all         # fase A (o start, cat_indoor, cat_outdoor, dogs): ~3 min
+.venv/Scripts/python -m sim.validate              # fase B; --coverage per C1 (mappa calibrata?)
+.venv/Scripts/python -m sim.baseline              # fase C: anelli contro simulatore, ~50 s
+.venv/Scripts/python -m pytest -q                 # ~30 s
+```
+
+Ambiente: `py -3.12 -m venv .venv` e `pip install numpy scipy matplotlib pytest`.
 
 ---
 
@@ -78,8 +102,9 @@ v0.1), codice e commenti in inglese. Il sito: da decidere (`docs/STATO.md`).
 - Ogni numero nei documenti ha la fonte accanto. Niente numeri a memoria.
 - Prima di ogni misura si scrive la previsione; il risultato si registra anche se dà zero.
 - Il modello si tara sui casi reali, non sulle opinioni: ogni ritrovamento è un dato.
-- Facebook e gli altri social non si leggono in automatico: i post li portano le persone.
-- I dati dei proprietari non sono mai pubblici; chi segnala un avvistamento resta anonimo.
+- Il simulatore predice solo dai dati del caso (animale, casa, zona, ora): nessun ingresso
+  dopo la perdita, nessun volantino (Marcello, 2026-09-25).
+- I dati dei proprietari non sono mai pubblici.
 
 ---
 

@@ -12,9 +12,15 @@ Huang L., Coradini M., Rand J. et al., *Search Methods Used to Locate Missing Ca
 Locations Where Missing Cats Are Found*, Animals 8(1):5, 2018.
 https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5789300/ · PDF:
 https://www.missinganimalresponse.com/wp-content/uploads/2018/01/animals-08-00005.pdf
-- 75% trovati entro 500 m dal punto di fuga; mediana 50 m (vivi); massimo 25 km.
-- Da appartamento: 39 m in media, 75° percentile 137 m. Con accesso all'esterno: 300 m in
-  media, 75° percentile 1.609 m.
+- 75% trovati entro 500 m dal punto di fuga; mediana 50 m, 25° e 75° percentile 9 e 500 m
+  (477 gatti trovati vivi); massimo 25 km.
+- Da appartamento (164): **mediana** 39 m, 25° e 75° percentile 9 e 137 m. Con accesso
+  all'esterno (150): **mediana** 300 m, 25° e 75° percentile 14 e 1.609 m. (Verificato alla
+  fonte il 2026-09-25: sono mediane, non medie.)
+- Dove sono stati trovati i 602 vivi: 83% fuori (fra i luoghi all'aperto, 19% «aspettava
+  fuori casa», 20% in un giardino), 11% in casa d'altri, 4% in casa propria, 2% in un
+  edificio pubblico.
+- Nel campione di 1.210: 28% solo in casa, 46% con accesso all'esterno non sorvegliato.
 - 34% ritrovati vivi entro 7 giorni; circa metà entro 30; 56% entro 61; 61% entro un anno.
   Pochi vivi dopo 90 giorni.
 - La ricerca fisica aumenta la probabilità di ritrovarlo vivo.
@@ -99,6 +105,27 @@ https://www.infobae.com/espana/2024/11/27/cuantos-kilometros-puede-recorrer-un-g
 - Circa l'80% del tempo entro 50 m da casa; «mappa mentale» di 1-2 km. Da leggere alla
   fonte (Bischof et al., *Mapping the "catscape"*, 2022) per il raggio di casa dei gatti
   liberi.
+
+### Zhang 2022 — 29 gatti liberi con GPS, campus di Nanjing (primaria)
+Zhang et al., *Home Range and Activity Patterns of Free-Ranging Cats: A Case Study from a
+Chinese University Campus*, Animals 12(9):1141, 2022. https://pmc.ncbi.nlm.nih.gov/articles/PMC9103849/
+(verificato il 2026-09-25)
+- Home range (KDE 95%) da 0,56 a 19,83 ha, media 7,66 ± 1,01 ha; in stagione riproduttiva
+  maschi 12,60 ± 2,61 ha, femmine 5,02 ± 1,34 ha. Gatti residenti, non smarriti.
+- Due picchi di attività: 6:00-10:00 e 17:00-21:00 (per `p_move` dei gatti per ora).
+
+### Xia & Zhao 2024 — 20 gatti liberi, campus di Wuhan (primaria)
+夏璿评, 赵华斌, 生物资源 (Biotic Resources) 46(2):172-177, 2024.
+https://sciengine.com/parse/pdf/2096-3491/387D3845970C41FFB052DB6846AFA356.pdf (verificato da
+estratti; una lettura del PDF ha dato 15 gatti e 4,2 ha: da ricontrollare sul PDF)
+- Home range 4,99 ± 0,84 ha; 85% del tempo entro 100 m da un punto di cibo; più punti di
+  cibo, raggio più piccolo.
+
+### Articoli sui «pet detective» cinesi (non studi)
+Tencent News, 2026-03-28, https://news.qq.com/rain/a/20260328A036G700: «il gatto non va
+lontano, molto probabilmente entro 50-100 m, nascosto». Altre cifre che circolano («gatti
+entro 1 km», «cani fino a 6 km», «successo 70-80%») non trovate in nessuna fonte: i link che
+le citavano erano inventati (verificato il 2026-09-25).
 
 ### Brasile — sondaggio a 1.160 proprietari (secondaria)
 Citato da https://adotar.com.br/blog/pet-fugiu-como-encontrar-cachorro-gato-perdido
