@@ -562,3 +562,72 @@ Verdetto: il rilancio toglie l'ammucchiamento contro i muri e porta le posizioni
 Hanmer (GPS: il tempo vero), tenendo distanze e calibrazione. Entra nel motore come regola
 (`redraw` = 5). La mappa si stringe ancora: al 50% da 1,04 (la 1) a 0,59 ha. Restano la
 vegetazione di Huang (cespugli nei giardini, invisibili a 10 m) e le strade un po' alte.
+
+### 2026-09-26 — L5 — il luogo punta dove stanno i gatti veri? (protocollo, scritto prima dei dati)
+Cosa: la parte «direzione» del modello (la stessa del motore: a distanza r, la densità
+sull'anello va con `w = sel(tipo) × reach`, `Place.weight`) contro le posizioni GPS di gatti
+di casa veri: Cat Tracker (Kays et al. 2020, Movebank, CC0; `riferimenti.md` §B). Gatti
+residenti, non smarriti: si prova solo la direzione (edifici, giardini, strade), non le
+distanze. Prova pilota: il dataset del Regno Unito (se non va, gli Stati Uniti), fino a 40
+gatti con almeno 100 posizioni, scelti per numero di posizioni. Il luogo di ogni gatto da
+OpenStreetMap, ±300 m, celle da 2 m; la casa dalla posizione di partenza del dataset o,
+se manca, dalla cella da 10 m con più posizioni.
+Unità: il **gatto** (le posizioni dello stesso gatto non sono indipendenti).
+Punteggio: per ogni posizione a 20-280 m da casa, `G = log(w_s(x) / w̄_s(r))`, il guadagno
+in logaritmo della mappa con il luogo sulla mappa radiale alla stessa distanza (`w_s`: `w`
+lisciato con σ = 10 m per l'errore del GPS, stima; più l'1% della media dell'anello, così
+nessuna posizione vale −∞; `w̄_s`: la media sull'anello da 2 m). `S_c` = media di G sulle
+posizioni del gatto c, in nat per posizione.
+Nullo: la stessa mappa ruotata attorno a casa di un angolo a caso (999 angoli per gatto): le
+distanze restano identiche, si perde solo la direzione.
+Test: `D` = media sui gatti di (`S_c` − media delle `S_c` ruotate); p per permutazione (9.999
+estrazioni, un angolo a caso per gatto): p = (1 + #{D* ≥ D}) / 10.000. **Significativo se
+p < 0,001** (una coda). Si riportano anche la quota di gatti con il proprio p < 0,05 (5% se il
+luogo non conta) e le quote per classe di Hanmer delle posizioni contro le ruotate.
+Previsione:
+- D fra 0,05 e 0,30 nat per posizione, p < 0,001;
+- gatti con il proprio p < 0,05: fra il 30% e il 60%;
+- quote contro le ruotate, standardizzate: giardino 0,40-0,55, costruito 0,25-0,40, naturale
+  0,15-0,30.
+Se p ≥ 0,001: il luogo, così com'è, non punta dove stanno i gatti; si scrive e si smonta
+pezzo per pezzo (edifici come muri, selezione, raggiungibilità) prima di scartarlo.
+Risultato del pilota (`privato/dati/cattracker/score.json`): dal dataset del Regno Unito
+(101 gatti, posizioni ogni 3 minuti, nessuna colonna di errore del GPS, nessun punto di
+casa: la casa è la cella da 10 m con più posizioni) sono stati costruiti 6 luoghi su 14
+candidati (8 senza un edificio di OSM entro 30 m dalla casa stimata; Overpass ha smesso di
+rispondere dopo 14 richieste); un gatto ha meno di 20 posizioni fra 20 e 280 m. **5 gatti.**
+- D = **0,030** nat per posizione (✗, previsto 0,05-0,30); **p = 0,053** (✗, soglia 0,001):
+  **non significativo**. Il segno va nel verso previsto: 4 gatti su 5 sopra la media delle
+  proprie rotazioni (Teddy sotto, p proprio 0,89);
+- gatti con il proprio p < 0,05: 1 su 5 (✗, previsto 30-60%);
+- quote contro le ruotate, standardizzate: giardino 0,39 (✗ di poco, previsto 0,40-0,55),
+  costruito 0,36 ✓, naturale 0,25 ✓.
+Verdetto: il pilota non dimostra niente, né a favore né contro: 5 gatti sono troppo pochi.
+La dispersione fra gatti (scarto tipo delle differenze 0,056) dice che per un effetto di 0,03
+a p < 0,001 servono circa 35 gatti, circa 55 con la regola dei 4 errori standard.
+
+**Il test vero, fissato prima di scaricare altri gatti**: tutti i gatti del Regno Unito con
+almeno 100 posizioni (72), con il luogo costruito dove c'è un edificio di OSM entro 30 m
+dalla casa stimata, stesso punteggio, stesse rotazioni, stessa soglia p < 0,001; **un solo
+lancio**, qualunque sia il numero di gatti che ne esce, e il risultato si scrive comunque.
+Niente aggiunte dopo aver visto il risultato (fermarsi quando torna significativo gonfia il
+falso positivo). Previsione: D fra 0,01 e 0,06, p < 0,001 se i gatti sono almeno 35.
+Risultato del test vero (`privato/dati/cattracker/score-confirmatory.json`, un solo lancio):
+72 gatti controllati, 46 luoghi costruiti (26 senza un edificio di OSM entro 30 m dalla casa
+stimata), 45 con almeno 20 posizioni fra 20 e 280 m.
+- D = **0,021** nat per posizione ✓ (previsto 0,01-0,06): alle posizioni vere la mappa con il
+  luogo dà in media il 2% di densità in più della stessa mappa ruotata;
+- **p = 0,030** ✗ (soglia 0,001): **non significativo**;
+- gatti con il proprio p < 0,05: 11% (5% se il luogo non conta);
+- quote contro le ruotate, standardizzate: giardino 0,38, costruito 0,34, naturale 0,29
+  (quasi neutre: un terzo ciascuna);
+- scarto fra gatti 0,088: per dimostrare un effetto di 0,021 a p < 0,001 servono circa 165
+  gatti.
+Verdetto: **il luogo, così com'è, non è dimostrato sui gatti veri.** Se c'è, l'effetto è
+piccolo (2% di densità in più). Quindi la mappa più stretta di L3 (al 50% 0,59 ha invece
+di 1,04) non è sostenuta dai dati veri: è coerente con il modello (C1), non con i gatti.
+Prossimo, dichiarato esplorativo (non un altro test di conferma sugli stessi gatti): smontare
+il luogo pezzo per pezzo sui 45 gatti (solo edifici come muri, solo la selezione, solo la
+raggiungibilità, senza la lisciatura) per vedere quale pezzo porta il segnale e quale lo
+toglie; poi un test di conferma nuovo, con il suo protocollo, sui gatti di Stati Uniti,
+Australia e Nuova Zelanda (gli stessi dati CC0), con il numero di gatti calcolato prima.

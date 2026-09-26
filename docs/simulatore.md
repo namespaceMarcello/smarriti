@@ -173,6 +173,10 @@ la selezione nel passo e il rilancio (L3): regge 1-3 (distanze dei liberi entro 
 con la selezione nel passo, 0,59 con il rilancio); le posizioni lette contro la 1 danno
 giardino 0,50 · costruito 0,34 · naturale 0,16 (Hanmer 0,553 · 0,311 · 0,136). La variante 3
 differisce dalla 2 del 7% (`lessons.md` #35). `python -m sim` con il luogo: meno di 1 s.
+**Sui gatti veri non è dimostrato** (L5, 45 gatti di casa del Regno Unito con il GPS): alle
+posizioni vere la mappa con il luogo dà il 2% di densità in più della stessa mappa ruotata,
+p = 0,030 contro la soglia 0,001. La mappa più stretta è coerente con il modello, non ancora
+con i gatti.
 
 | Parametro | Valore | Fonte |
 |---|---|---|
@@ -330,6 +334,8 @@ errori standard dentro 0,45-0,58 e 0,84-0,95.
 - Luogo in 3D: la selezione dei posti viene da gatti residenti (Hanmer 2017), non smarriti:
   nessuno studio GPS su gatti smarriti è stato trovato. Nessuno studio per attraversare le
   strade, il salto in su, la salita e la discesa: stime dichiarate nella tabella.
+- Luogo in 3D: non dimostrato sui gatti veri (L5: effetto 2%, p = 0,030 su 45 gatti; ne
+  servono circa 165). Quale pezzo porta il segnale non si sa ancora.
 - Luogo in 3D: il rilancio del passo mette un po' meno gatti dove è fitto (0,91 della
   disponibilità a ridosso dei muri sul luogo di prova, L3); il «naturale» di Hanmer (grandi aree verdi) non è il
   «sotto la vegetazione» di Huang (cespugli nei giardini), che a 10 m non si vede; i
@@ -366,6 +372,7 @@ tests/             # pytest -q: about 30 s
   test_targets.py    # phase A: the whole 4-SE interval within +-20% of each target
   test_hypotheses.py # phases B and C1; known failures are strict xfails
   test_place3d.py    # the place in 3D on a synthetic place (no private data)
+  test_gps_score.py  # the rotation test finds a place cats follow, and nothing in random directions
 cases/
   esempio-gatto.json, esempio-cane.json
 proto/luogo3d/     # builds the world of a place (docs: "Il luogo in 3D")
@@ -373,6 +380,9 @@ proto/luogo3d/     # builds the world of a place (docs: "Il luogo in 3D")
   world.py         # layers on a 2 m grid centred on home -> world.npz
   variants.py      # the three maps side by side and the checks (L1, L1b, L2)
   utm.py, cogread.py  # pure-Python UTM and GeoTIFF windows (lessons.md #31)
+proto/gps/         # the place against real cats: GPS of pet cats (Cat Tracker), L5
+  build_cats.py    # download, home point, world.npz per cat from OpenStreetMap
+  score.py         # log score of the place map vs the same map rotated; permutation test
 ```
 
 Formato del caso (`cases/*.json`):

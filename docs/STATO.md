@@ -46,6 +46,11 @@ un passo fatto si cancella (e va in `archivio/FATTO.md`), una decisione superata
 - Moltiplicatori di zona e del piano: stime senza fonte, da tarare sui casi. Con il luogo
   in 3D li sostituisce la geometria; ogni regola fine viene da uno studio o resta una stima
   dichiarata.
+- **Il luogo in 3D non è dimostrato sui gatti veri** (L5 in `MISURE.md`): su 45 gatti di casa
+  del Regno Unito con il GPS (Cat Tracker, CC0) la mappa con il luogo dà alle posizioni vere
+  il 2% di densità in più della stessa mappa ruotata, p = 0,030 contro la soglia 0,001 fissata
+  prima. La mappa più stretta (0,59 ha invece di 1,04) è coerente con il modello, non con i
+  gatti: non va presentata come più precisa finché un test di conferma non passa.
 - **Il luogo in 3D, cosa resta** (L3 in `MISURE.md`): la vegetazione di Huang (sotto i
   cespugli il 16% dei trovati) a 10 m non si vede, i gatti in `veg` sono 0,04 contro 0,25; le
   strade escono un po' alte (0,21 contro 0,10 di Huang); il rilancio del passo mette un po'
@@ -67,15 +72,20 @@ un passo fatto si cancella (e va in `archivio/FATTO.md`), una decisione superata
 
 ## Prossimi passi
 
-1. **Il luogo al metro**: in `proto/luogo3d/fetch.py` le tessere LiDAR a 1 m della Città
+1. **Smontare il luogo sui gatti veri** (esplorativo, L5): sui 45 gatti, un pezzo alla volta
+   (solo edifici come muri, solo la selezione di Hanmer, solo la raggiungibilità, senza
+   lisciatura) per vedere quale porta il segnale e quale lo toglie. Poi un test di conferma
+   nuovo, con il suo protocollo scritto prima, sui gatti di Stati Uniti, Australia e Nuova
+   Zelanda (Cat Tracker, CC0): ne servono circa 165.
+2. **Il luogo al metro**: in `proto/luogo3d/fetch.py` le tessere LiDAR a 1 m della Città
    Metropolitana (DTM e DSM) e le siepi a 5 m di Copernicus; in `world.py` terreno a 1-2 m,
    altezza sopra il suolo (DSM − DTM), un tipo di posto «sotto la vegetazione» (cespugli,
    siepi). Previsioni prima: quanto sale `veg` verso lo 0,25 di Huang, quanto si stringe la
    mappa, quanti tetti, muri e terrazzamenti diventano raggiungibili (se tanti, le altezze:
    variante 3).
-2. Scaricare Dallas e Austin: posizioni di raccolta, tempi di rientro, quota «raccolti»;
+3. Scaricare Dallas e Austin: posizioni di raccolta, tempi di rientro, quota «raccolti»;
    se ci sono punto di raccolta e indirizzo del proprietario, un banco di prova con dati
    pubblicati per misurare se il luogo (strade, edifici) migliora la mappa dei cani.
-3. Il sito.
-4. Leggere Huang 2018 e Lord 2007 alla fonte: tabelle complete.
-5. Scegliere il nome.
+4. Il sito.
+5. Leggere Huang 2018 e Lord 2007 alla fonte: tabelle complete.
+6. Scegliere il nome.

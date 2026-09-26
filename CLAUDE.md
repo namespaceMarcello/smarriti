@@ -96,6 +96,8 @@ Stack: simulatore in Python 3.12 (`numpy`, `scipy`, `matplotlib`, `pytest`; `pys
 .venv/Scripts/python -m sim.compare               # immagine prima / anelli / ora (out/confronto-prima-dopo.png), 2 s
 .venv/Scripts/python -m pytest -q                 # ~50 s; --runslow aggiunge i test lenti (~20 s)
 .venv/Scripts/python -m sim.fingerprint           # impronta del motore senza luogo: prima e dopo ogni modifica, 5 s
+.venv/Scripts/python -m proto.gps.build_cats 72   # gatti GPS di Cat Tracker: tracce e luogo da OSM (riprende dalla cache)
+.venv/Scripts/python -m proto.gps.score privato/dati/cattracker   # il luogo contro i GPS di gatti veri (L5)
 .venv/Scripts/python -m proto.luogo3d.fetch privato/luogo-prova.json privato/luogo      # dati aperti del luogo
 .venv/Scripts/python -m proto.luogo3d.world privato/luogo-prova.json privato/luogo      # griglia da 2 m, 3 s
 .venv/Scripts/python -m proto.luogo3d.variants privato/luogo-prova.json privato/luogo   # le tre mappe, 4 s

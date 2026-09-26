@@ -55,4 +55,10 @@ la mappa a 4 m. Senza luogo il motore dà gli stessi bit (taratura, B, C1, C2 id
 tests/test_place3d.py`, `python -m proto.luogo3d.variants privato/luogo-prova.json
 privato/luogo`, `python -m sim privato/caso-luogo-prova.json --now 2026-09-26T20:00 --out
 privato/out-caso`.
-
+### 2026-09-26 — Il luogo contro i GPS di gatti veri (L5)
+`proto/gps/`: scarica le tracce di Cat Tracker (Kays et al. 2020, Movebank, CC0), stima la
+casa, costruisce il luogo di ogni gatto da OpenStreetMap e confronta la mappa con il luogo
+con la stessa mappa ruotata (punteggio logaritmico, permutazione, protocollo scritto prima).
+Su 45 gatti del Regno Unito: effetto 2%, p = 0,030, non significativo. Si prova: `python -m
+proto.gps.build_cats 72`, `python -m proto.gps.score privato/dati/cattracker`, `pytest -q
+tests/test_gps_score.py`.
