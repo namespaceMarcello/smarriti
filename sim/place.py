@@ -18,6 +18,7 @@ from scipy import ndimage, sparse
 from scipy.sparse.csgraph import dijkstra
 
 TYPES = ("veg", "garden", "edge", "open", "street", "roof")
+WATER = 80  # ESA WorldCover class: not a place where a cat can be (docs/MISURE.md L11)
 
 
 @dataclass
@@ -34,6 +35,17 @@ class PlaceParams:
     sel: dict = field(default_factory=lambda: {"veg": 0.136 / 0.311, "garden": 0.553 / 0.311,
                                                "open": (0.553 / 0.311) ** 0.5, "edge": 1.0,
                                                "street": 1.0, "roof": 1.0})
+    # what the anchors and the time spent weigh (docs/MISURE.md L14): "hanmer" = Hanmer's `sel` by
+    # type, buildings as walls (the engine). "lost" = outside, the resident cats' selection by distance
+    # from the nearest building (L13, 391 GPS cats, over its mean outside); inside a building other
+    # than home, where a lost cat hides (Huang 2018: garages, sheds, under houses, others' houses),
+    # `hide` against outside. Not the engine's yet: with `hide` in the step selection the cats outside
+    # move 1.5-1.7 times more and the lower quartile of the distances rises 13-28% (L14). `sel` stays
+    # Hanmer's either way: the GPS maps of L5-L7 read it.
+    preference: str = "hanmer"
+    band_edges: tuple = (3.0, 6.0, 12.0, 24.0)  # m from the nearest building: 0-3, 3-6, 6-12, 12-24, >24
+    bands: tuple = (1.002, 1.045, 1.089, 1.003, 0.819)  # L13 bands6 at sigma 0, / 1.021 (its mean outside)
+    hide: float = 3.58  # L14: (s/a)/((1-s)/(1-a)), s 0.268 of Huang's found cats in a footprint, a 0.093 (US, AU)
     c_road: tuple = (1.0, 1.0, 2.0, 3.0, 10.0, 10.0)  # by road class 0..5: estimate
     k_up: float = 5.0  # extra metres of path per metre climbed: estimate
     edge_m: float = 3.0  # estimate
@@ -43,6 +55,9 @@ class PlaceParams:
     # the selection also in the step: a cat moves less often where it likes to stay, so the time
     # spent in a type of place goes with sel (docs/simulatore.md, "Il movimento attorno all'ancora")
     step_selection: bool = True
+    # anchors weigh sel x reachability (L5) or sel alone on the free cells (after L7, where the
+    # reachability was neutral on 391 real cats: docs/MISURE.md L6, L7)
+    reach_weight: bool = False
     # a step that ends where the cat cannot be is drawn again up to `redraw` times, then it ends on
     # the nearest free cell; 0 = straight to the nearest free cell (L2: twice the mass against walls)
     redraw: int = 5
@@ -76,6 +91,7 @@ class Place:
         W = world
         bld = W.bid >= 0
         home = W.bid == W.bid_home
+        water = (W.cover == WATER) & (W.road == 0)  # a road over the water is a bridge
         near_bld = ndimage.distance_transform_edt(~bld) * W.cell <= par.edge_m
         t = np.full(W.bid.shape, TYPES.index("open"), np.int8)
         t[np.isin(W.cover, (10, 20, 30, 40)) | (W.green == 2)] = TYPES.index("veg")  # Hanmer "natural"
@@ -85,18 +101,35 @@ class Place:
         t[bld] = TYPES.index("roof")
         self.type = t
         self.z = W.ground + (W.bh if heights else 0.0)
-        # where the cat can stand: flat, the ground outside buildings; with heights, ground and roofs but its own house
-        self.surface = ~home if heights else ~bld
+        # where the cat can stand: flat, the ground outside buildings; with heights, ground and roofs but its own
+        # house; never on the water
+        self.surface = (~home if heights else ~bld) & ~water
         self.exits = self._exits(home)
         self.D = self._costs()
         with np.errstate(divide="ignore", invalid="ignore"):
             reach = [np.where(np.isfinite(D), np.minimum(1.0, np.where(D > 0, W.d / D, 1.0)), 0.0) for D in self.D]
         self.reach = par.p_door * reach[0] + (1 - par.p_door) * reach[1]
-        self.ok = self.surface & (self.reach > 0)  # where a cat can be
+        free = self.surface & (self.reach > 0)
         self.sel = np.array([par.sel[k] for k in TYPES])[t]
-        self.weight = np.where(self.surface, self.sel * self.reach, 0.0)
+        if par.preference == "hanmer":
+            self.ok, self.pref, self.hide = free, self.sel, np.zeros_like(bld)
+        elif par.preference == "lost":
+            self.hide = self._hides(bld & ~home & ~water, free & ~bld)
+            self.ok = free | self.hide  # where a cat can be
+            d_bld = ndimage.distance_transform_edt(~bld) * W.cell
+            band = np.array(par.bands)[np.searchsorted(par.band_edges, d_bld, "left")]
+            self.pref = np.where(self.hide, par.hide, band)
+        else:
+            raise ValueError(f"preference: 'lost' or 'hanmer', not {par.preference!r}")
+        self.weight = np.where(self.ok, self.pref * (self.reach if par.reach_weight else 1.0), 0.0)
         self._index_rings()
         _, self._near = ndimage.distance_transform_edt(~self.ok, return_indices=True)
+
+    def _hides(self, others: np.ndarray, ground: np.ndarray) -> np.ndarray:
+        """Every cell of the buildings in `others` that touch `ground` (free and reachable): where a
+        lost cat can hide. The graph does not go through them: a cat gets in from the ground nearby."""
+        touch = ndimage.binary_dilation(ground, np.ones((3, 3), bool)) & others
+        return others & np.isin(self.w.bid, np.unique(self.w.bid[touch]))
 
     # --- exits ------------------------------------------------------------------------
     def _exits(self, home):
@@ -178,9 +211,10 @@ class Place:
         return self.w.gx[jy, jx], self.w.gy[jy, jx]
 
     def sel_at(self, x, y):
-        """sel of the cell under each point; NaN off the grid or where a cat cannot be."""
+        """The preference (`pref`) of the cell under each point, what the time spent there goes with;
+        NaN off the grid or where a cat cannot be."""
         iy, ix, inside = self.w.index(x, y)
-        return np.where(inside & self.ok[iy, ix], self.sel[iy, ix], np.nan)
+        return np.where(inside & self.ok[iy, ix], self.pref[iy, ix], np.nan)
 
     def start_point(self):
         door = self.exits[0]

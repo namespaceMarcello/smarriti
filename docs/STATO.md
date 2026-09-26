@@ -7,6 +7,7 @@ un passo fatto si cancella (e va in `archivio/FATTO.md`), una decisione superata
 
 | Data | Decisione | Perché |
 |---|---|---|
+| 2026-09-26 | **Prima il modello, poi il sito.** Nessun limite dato per scontato: un «limite» si scrive come il prossimo problema da attaccare; ogni idea, per quanto assurda, si prova prima di giudicarla; se la matematica che serve non c'è, si inventa | Marcello: «con i numeri, la matematica, tutto è possibile, anche al costo di inventare teoremi nuovi» |
 | 2026-09-26 | **Il luogo in 3D è nel motore, variante 2** (edifici e giardini, senza altezze; le altezze restano un'opzione del caso). Un gatto resta più a lungo dove gli piace stare (selezione nel passo, Hanmer) e un passo che finisce dentro un edificio si rilancia | Marcello, su consiglio: la 3 oggi cambia il 5% (nessun tetto a portata di salto) e aggiunge regole senza studio; L2-L3 in `MISURE.md` |
 | 2026-09-26 | **Il luogo al metro senza richieste**: niente email, moduli firmati o pagamenti per avere dati. Si leggono e si incrociano le fonti aperte che si scaricano da sole (altezza della chioma a 1 m da satellite, siepi, database topografici con muri e gronde, i servizi di mappe pubblici), come letture di un genoma: tante letture corte e rumorose, allineate, al posto di una lettura lunga da chiedere | Marcello; `lessons.md` #37 |
 | 2026-09-26 | Le altezze degli edifici da **3D-GloBFP** (CC BY 4.0), non da GlobalBuildingAtlas (CC BY-NC 4.0); il terreno da TINITALY (CC BY 4.0), il verde da WorldCover (CC BY 4.0). Dal computer esce solo un riquadro arrotondato a 0,01°; il punto della casa si trova in locale nell'ANNCSU | un progetto AGPL non usa dati «non commerciali» (`lessons.md` #32); l'indirizzo non esce |
@@ -46,11 +47,38 @@ un passo fatto si cancella (e va in `archivio/FATTO.md`), una decisione superata
 - Moltiplicatori di zona e del piano: stime senza fonte, da tarare sui casi. Con il luogo
   in 3D li sostituisce la geometria; ogni regola fine viene da uno studio o resta una stima
   dichiarata.
-- **Il luogo in 3D non è dimostrato sui gatti veri** (L5 in `MISURE.md`): su 45 gatti di casa
-  del Regno Unito con il GPS (Cat Tracker, CC0) la mappa con il luogo dà alle posizioni vere
-  il 2% di densità in più della stessa mappa ruotata, p = 0,030 contro la soglia 0,001 fissata
-  prima. La mappa più stretta (0,59 ha invece di 1,04) è coerente con il modello, non con i
-  gatti: non va presentata come più precisa finché un test di conferma non passa.
+- **Il luogo e i gatti veri: associazione sì, previsione quasi niente** (L7, L10b, L12, L13 in
+  `MISURE.md`; 391 gatti di Stati Uniti, Australia e Nuova Zelanda, 46 del Regno Unito). L7 ha
+  confermato un'associazione (le vere cadono dentro le impronte il 10% meno delle ruotate), ma
+  come previsione la mappa del motore perde contro la radiale a ogni lisciatura (σ 10: −0,012;
+  senza pavimento −∞, il 13,8% delle vere cade negli edifici, dove il motore dà zero): perdono lo
+  zero dentro e i pesi di Hanmer. Il metro ora è S con l'errore del GPS dentro
+  (`proto/gps/classes.py`). **Il paesaggio di OSM, per gatti residenti, dà al massimo 0,002-0,004
+  nat per posizione**: il rapporto di selezione per fasce di distanza dagli edifici (dentro 0,91 ·
+  0-3 m 1,02 · 3-6 1,07 · 6-12 1,11 · 12-24 1,02 · oltre 0,84) batte la radiale in tutti e quattro
+  gli insiemi (fuori campione; +0,0028 ± 0,0039 nel Regno Unito), in nessuno da solo in modo
+  significativo. Tipo e superficie degli edifici non cambiano niente. Il solo segnale più grande
+  (+0,012) è la casa del gatto (le posizioni pendono verso l'edificio di casa) e nel Regno Unito
+  non regge (−0,005): è il centro degli anelli, non il paesaggio. Lo 0,97 degli Stati Uniti viene
+  per un terzo dalle impronte di Microsoft (1,11), il resto dai `yes` senza fonte. Dentro gli
+  edifici le vere sono sparse su tutta l'impronta (profilo piatto entrando): non è l'errore di
+  pochi metri a ridosso dei muri.
+- **L'acqua** (L11): nel motore finiva in `open` (selezione 1,78), e in un caso vicino al mare o
+  a un lago la mappa metteva gatti in acqua. Ora l'acqua di WorldCover (classe 80) non è un posto
+  e fa da barriera, tranne sotto una strada (i ponti). I fiumi sotto i 10 m restano invisibili.
+  Nei mondi dei gatti GPS l'acqua non c'è (`build_cats.py` non la disegna): L7 è per difetto,
+  con l'acqua come muro D salirebbe di circa 0,03 negli Stati Uniti e in Nuova Zelanda
+  (esplorativo, L10b).
+- **I posti consigliati oltre il primo sono in parte rumore** (L11): sul caso privato il
+  primo (casa, p 0,72) regge a ogni seme; degli altri quattro (p 0,01-0,03), cambiando solo il
+  seme, uno non ha un corrispondente entro 85-121 m e un altro entro 45-49 m. Da misurare quanti
+  gatti virtuali servono perché reggano, o da scegliere come zone invece che come celle.
+- **Il GPS non vede come il gatto** (`riferimenti.md`, «Il GPS dei gatti»): sotto gli alberi
+  il fix riesce (circa 100%, 2 m di errore in più), quindi la vegetazione evitata di Hanmer e
+  di L6 è del gatto; a ridosso degli edifici si perde un fix su quattro e in casa quattro su
+  cinque, quindi il bordo e l'edificio sotto 1 in L6 sono in parte del GPS. I ripari di Huang
+  (garage e capanni 10%, sotto portico o veranda 10%, sotto casa 5%) il GPS non li vede, e nel
+  motore gli edifici sono muri: un gatto nascosto in un capanno oggi non ha dove stare.
 - **Il luogo in 3D, cosa resta** (L3 in `MISURE.md`): la vegetazione di Huang (sotto i
   cespugli il 16% dei trovati) a 10 m non si vede, i gatti in `veg` sono 0,04 contro 0,25; le
   strade escono un po' alte (0,21 contro 0,10 di Huang); il rilancio del passo mette un po'
@@ -62,30 +90,49 @@ un passo fatto si cancella (e va in `archivio/FATTO.md`), una decisione superata
   salto in su, salita e discesa, riparo sotto le auto contro i bordi degli edifici.
 - **Luogo di prova**: un indirizzo vero di Napoli dato da Marcello, in `privato/` (fuori da
   git), con il punto del portone trovato nell'ANNCSU. Mai nei documenti né nei test.
-- **Il luogo al metro dalle fonti aperte** (`riferimenti.md` §B, 2026-09-26): il LiDAR a 1 m
-  della Città Metropolitana di Napoli (terreno e superficie, del 2009, CC BY-SA 4.0) si
-  scarica senza richieste; le siepi a 5 m da Copernicus; muri e gronde in vettoriale non
-  trovati aperti (Regione e Comune): restano OSM e l'altezza DSM − DTM.
+- **Il luogo al metro dalle fonti aperte** (`riferimenti.md` §B): il LiDAR a 1 m della Città
+  Metropolitana di Napoli (2009, CC BY-SA 4.0) è nel mondo del luogo (`fetch.py ... lidar`,
+  L8): il terreno a 1 m si scosta da TINITALY 2,6 m in mediana (quanto TINITALY dichiara);
+  3D-GloBFP dà gli edifici 2,5 m più alti del LiDAR, per edificio e senza i bordi (L8b,
+  correlazione 0,48): con le altezze, quelle del LiDAR. Le siepi a 5 m da Copernicus mancano
+  ancora; muri e gronde in vettoriale non trovati aperti: restano OSM e DSM − DTM.
 - Profilo orario dei gatti: Zhang 2022 dà picchi 6-10 e 17-21 (non «tutta la notte»).
 - **Nome del progetto.**
 - **Stack del sito**: da scegliere quando il simulatore regge.
 
 ## Prossimi passi
 
-1. **Smontare il luogo sui gatti veri** (esplorativo, L5): sui 45 gatti, un pezzo alla volta
-   (solo edifici come muri, solo la selezione di Hanmer, solo la raggiungibilità, senza
-   lisciatura) per vedere quale porta il segnale e quale lo toglie. Poi un test di conferma
-   nuovo, con il suo protocollo scritto prima, sui gatti di Stati Uniti, Australia e Nuova
-   Zelanda (Cat Tracker, CC0): ne servono circa 165.
-2. **Il luogo al metro**: in `proto/luogo3d/fetch.py` le tessere LiDAR a 1 m della Città
-   Metropolitana (DTM e DSM) e le siepi a 5 m di Copernicus; in `world.py` terreno a 1-2 m,
-   altezza sopra il suolo (DSM − DTM), un tipo di posto «sotto la vegetazione» (cespugli,
-   siepi). Previsioni prima: quanto sale `veg` verso lo 0,25 di Huang, quanto si stringe la
-   mappa, quanti tetti, muri e terrazzamenti diventano raggiungibili (se tanti, le altezze:
-   variante 3).
-3. Scaricare Dallas e Austin: posizioni di raccolta, tempi di rientro, quota «raccolti»;
+1. **Il gatto smarrito che si nasconde, senza cambiare le distanze** (L14). La regola è scritta
+   e nel codice come opzione (`PlaceParams(preference="lost")`: fuori le fasce dei residenti di
+   L13 al posto di Hanmer, dentro gli edifici diversi da casa il riparo di Huang, `hide` 3,58).
+   Non è il motore perché con `hide` nella selezione nel passo il gatto fuori si muove 1,5-1,7
+   volte di più (`sel_ref`) e il primo quartile delle distanze sale del 13-28% (xfail stretto in
+   `test_place3d.py`); con le sole ancore, invece, il passo da 10-25 m riporta i gatti negli
+   edifici quasi al caso (34% contro 33%). Da progettare, con una previsione scritta prima: il
+   nascondersi come tempo passato fermo in un riparo che tenga le distanze di A5 (per esempio uno
+   stato «nascosto» con l'entrata e l'uscita orarie, o una `sel_ref` presa dove i gatti sono ora e
+   non sulle ancore); poi il motore con `lost`, l'impronta senza luogo identica, L2-L3 rifatti.
+   Aperti di Huang: di chi sono casa, garage e capanno dei trovati «sotto casa» e «in garage»
+   (con metà alla casa propria h scende a 2,5), e la casa del gatto in un condominio (la scala,
+   la cantina, il cortile: oggi è un muro).
+2. **Il centro del gatto** (L13): porta, cella più densa o edificio di casa? Nei tre paesi le
+   posizioni fra 20 e 60 m pendono verso l'edificio di casa (coseno medio +0,2), nel Regno Unito
+   no. Misurare quale centro rende le distanze più strette e le direzioni più uniformi, dove la
+   definizione della casa cambia (righe nascoste o no, case singole o a schiera), prima di
+   toccare il punto casa del motore.
+3. **L'errore del GPS dai dati**: le righe nascoste dagli autori (circa il 90%) sono i periodi da
+   fermo; la loro dispersione attorno alla mediana del periodo dà il nucleo dell'errore degli
+   i-gotU sui gatti veri, in casa e fuori. Serve a leggere i rapporti dentro gli edifici (#56).
+4. **Il luogo al metro, cosa resta** (il LiDAR a 1 m è nel mondo del luogo: `dtm1`, `dsm1`,
+   `hmax1`, L8): le siepi a 5 m di Copernicus e un tipo di posto «sotto la vegetazione»
+   (cespugli, siepi), dopo il passo 1 (che peso dare ai ripari di un gatto smarrito).
+   La variante 3 con il LiDAR (9% dei tetti, un edificio su cinque entro 200 m a portata di
+   salto) si accende solo con una prova che tetti e salti contino: sui gatti veri la
+   raggiungibilità non porta segnale (L6). Dopo L9 un tetto raggiungibile pesa `sel` pieno,
+   qualunque sia il giro per arrivarci: se la 3 si accende, questa regola va rivista.
+5. Scaricare Dallas e Austin: posizioni di raccolta, tempi di rientro, quota «raccolti»;
    se ci sono punto di raccolta e indirizzo del proprietario, un banco di prova con dati
    pubblicati per misurare se il luogo (strade, edifici) migliora la mappa dei cani.
-4. Il sito.
-5. Leggere Huang 2018 e Lord 2007 alla fonte: tabelle complete.
-6. Scegliere il nome.
+6. Il sito.
+7. Leggere Lord 2007 alla fonte: tabelle complete.
+8. Scegliere il nome.

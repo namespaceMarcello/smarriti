@@ -11,11 +11,14 @@ Layers (row 0 = south edge):
   road     0 none, 1 footway/path/steps, 2 service, 3 residential/unclassified, 4 tertiary+, 5 railway
   green    OSM: 1 garden or park, 2 grass, wood, forest, orchard, scrub, farmland
   wall     OSM barrier=wall/retaining_wall/fence (1)
+  dtm1, dsm1  terrain and surface from the LiDAR at 1 m (mean of the cell's four pixels), m;
+              hmax1 the highest of the four surface-minus-terrain, m (only with lidar.npz)
 """
 from __future__ import annotations
 
 import json
 import sys
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -115,6 +118,23 @@ def build(place: dict, data: Path) -> dict:
     c = np.load(data / "cop30.npz")
     L["dsm30"] = bilinear(c["z"].astype(np.float64), (float(c["lat_top"]) - lat) / float(c["res"]),
                           (lon - float(c["lon_left"])) / float(c["res"]))
+
+    if (data / "lidar.npz").exists():  # the LiDAR at 1 m: every 2 m cell from its four 1 m pixels
+        z = np.load(data / "lidar.npz")
+        dtm, dsm = [], []
+        for dx, dy in ((-0.5, -0.5), (0.5, -0.5), (-0.5, 0.5), (0.5, 0.5)):
+            e1, n1 = to_utm(*g.latlon(g.gx + dx, g.gy + dy), int(z["zone"]))
+            r = np.floor((float(z["top"]) - n1) / float(z["res"])).astype(int)
+            q = np.floor((e1 - float(z["left"])) / float(z["res"])).astype(int)
+            ok = (r >= 0) & (q >= 0) & (r < z["dtm"].shape[0]) & (q < z["dtm"].shape[1])
+            r, q = np.clip(r, 0, z["dtm"].shape[0] - 1), np.clip(q, 0, z["dtm"].shape[1] - 1)
+            dtm.append(np.where(ok, z["dtm"][r, q], np.nan)); dsm.append(np.where(ok, z["dsm"][r, q], np.nan))
+        dtm, dsm = np.array(dtm), np.array(dsm)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)  # cells with no LiDAR stay NaN
+            L["dtm1"] = np.nanmean(dtm, 0).astype(np.float32)
+            L["dsm1"] = np.nanmean(dsm, 0).astype(np.float32)
+            L["hmax1"] = np.nanmax(dsm - dtm, 0).astype(np.float32)  # thin things (hedges, walls) show here
 
     w = np.load(data / "worldcover.npz")
     r = np.floor((float(w["lat_top"]) - lat) / float(w["res"])).astype(int)

@@ -1,54 +1,56 @@
 # Prompt per la prossima sessione
 
-Scritto il 2026-09-26, dopo il test sui gatti GPS veri (L5). Si sostituisce a fine
-sessione.
+Scritto il 2026-09-26, dopo L13 e L14. Si sostituisce a fine sessione.
 
 ---
 
-Prima di tutto: il luogo **non è dimostrato sui gatti veri** (L5 in `docs/MISURE.md`: 45 gatti
-GPS del Regno Unito, effetto 2%, p = 0,030 contro la soglia 0,001). Il compito è capire quale
-pezzo del luogo porta il segnale e quale lo toglie, poi preparare un test di conferma più
-grande. Il LiDAR a 1 m viene dopo.
+Prima di tutto: **prima il modello, poi il sito** (Marcello). E **nessun limite dato per
+scontato**: un'idea, per quanto assurda, si prova prima di giudicarla; se la matematica che serve
+non c'è, si inventa (`CLAUDE.md`, lo spirito).
 
-Leggi, in quest'ordine: `CLAUDE.md`, `docs/STATO.md` (decisioni del 2026-09-26, «Il luogo in
-3D, cosa resta», prossimo passo 1), `docs/simulatore.md` § «Il luogo in 3D», `docs/MISURE.md`
-L1b, L2, L3, **L5**, `docs/lessons.md` #33-#42, `docs/matematica.md` (punteggio logaritmico e test per rotazione), `proto/gps/`, `docs/riferimenti.md` §B (le righe «Cat Tracker», «LiDAR della Città
-Metropolitana», «Copernicus HRL Small Woody Features», «Altezza della chioma a 1 m»), il codice
-in `sim/place.py` e `proto/luogo3d/` (`fetch.py`, `world.py`, `variants.py`), e
-`privato/luogo-prova.md` (il luogo vero: **mai** nei documenti, nei test, nei commit).
+Dove siamo:
+- **L13**: il metro è S con l'errore del GPS dentro (`proto/gps/classes.py`). Per gatti residenti
+  il paesaggio di OSM dà al massimo 0,002-0,004 nat per posizione: regge solo la mappa per fasce
+  di distanza dagli edifici, positiva in tutti e quattro gli insiemi. Tipo e superficie degli
+  edifici non contano. La candidata della regola (la casa del gatto sfocata, +0,012) non ha
+  passato il Regno Unito (−0,005): era il centro degli anelli, non il paesaggio.
+- **L14**: la regola del gatto smarrito è nel codice come opzione (`PlaceParams(preference="lost")`:
+  fuori le fasce di L13, dentro gli edifici diversi da casa il riparo di Huang, `hide` 3,58), ma
+  **non è il motore**: con `hide` nella selezione nel passo `sel_ref` sale a 1,5-1,7, il gatto fuori
+  (alla porta) si muove 1,5-1,7 volte più del tarato e il primo quartile delle distanze sale del
+  13-28% (xfail stretto `test_the_lost_rule_keeps_the_walk_distances`). Con le sole ancore il
+  passo da 10-25 m riporta i gatti negli edifici quasi al caso (0,34 contro 0,33).
 
-Stato: il luogo è nel motore (`Simulation(place=...)`, il caso accetta `"place"`, `python -m
-sim` disegna la mappa a 4 m). Variante 2 (edifici e giardini, senza altezze). Senza luogo il
-motore dà gli stessi bit di prima. Sul luogo di prova, gatto di casa dal primo piano a 24 ore:
-regione al 50% 0,59 ha (1,04 senza luogo), posizioni contro la variante 1 0,50 · 0,34 · 0,16
-(Hanmer 0,553 · 0,311 · 0,136), C1 0,47 / 0,73, distanze entro il 6%. Resta fuori la
-vegetazione di Huang: gatti in `veg` 0,04 contro 0,25 (i cespugli dei giardini a 10 m non si
-vedono). `pytest -q`: 82 passano in ~50 s.
+Leggi, in quest'ordine: `CLAUDE.md`, `docs/STATO.md` (prossimi passi 1-3), `docs/MISURE.md` L13 e
+L14, `docs/lessons.md` #56-#58, `docs/simulatore.md` («La selezione nel passo» e la tabella dei
+parametri), `docs/matematica.md` (la catena con attesa), `sim/engine.py` (`_attach`, `step`,
+`_fit_steps`), `sim/place.py`.
 
-Il compito:
-1. Esplorativo, sui 45 gatti (`python -m proto.gps.score privato/dati/cattracker`, dati già in
-   `privato/dati/cattracker/`): lo stesso punteggio con un pezzo alla volta: solo gli edifici
-   come muri (sel = 1 ovunque, niente raggiungibilità), solo la selezione di Hanmer, solo la
-   raggiungibilità, senza lisciatura (σ del GPS 5, 10, 20 m). Si scrive che è esplorativo:
-   non conferma niente.
-2. Il test di conferma nuovo: protocollo scritto prima in `MISURE.md` (la mappa scelta al
-   punto 1, soglia, previsione, numero di gatti calcolato con margine: `lessons.md` #42) sui
-   gatti di Stati Uniti, Australia e Nuova Zelanda (Cat Tracker, Movebank, CC0: `move.885`,
-   `move.876`, `move.879`), con `proto/gps/build_cats.py` esteso a quei dataset. Un solo
-   lancio.
-3. Se resta tempo: il LiDAR a 1 m della Città Metropolitana di Napoli nel mondo del luogo
-   (`riferimenti.md` §B).
+Il compito, `STATO.md` passo 1: **il gatto smarrito che si nasconde senza cambiare le distanze**.
+1. Smonta prima di progettare: sulla città sintetica fitta e sul luogo di prova misura dove nasce
+   lo spostamento del primo quartile (ora per ora: quando i gatti lasciano la porta, con e senza
+   `hide` nel passo). Il conto della catena con attesa (`matematica.md`) dice quale `sel_ref`
+   terrebbe la media di `p_move` dove i gatti sono davvero.
+2. Progetta il nascondersi come tempo passato fermo in un riparo che tenga le distanze di A5.
+   Idee da provare, anche assurde: uno stato «nascosto» con entrata e uscita orarie (Huang: i
+   gatti smarriti stanno nascosti e zitti); una `sel_ref` presa sulle posizioni della variante 1
+   ora per ora invece che sulle ancore; la selezione solo sulla fine del passo (accettazione come
+   in Metropolis) invece che su `p_move`. Scegli con i numeri.
+3. Previsione scritta prima (in `MISURE.md`, L15): l'invariante delle distanze (±10% sui quartili,
+   4 errori standard, città sintetica e luogo di prova), la quota dei gatti sciolti entro 200 m
+   negli edifici, la regione al 50%, C1. Poi, se regge, `lost` diventa il motore: l'impronta senza
+   luogo identica, l'xfail tolto, L2-L3 rifatti con `variants.py`.
+4. Se avanza tempo: `STATO.md` passo 2 (il centro del gatto: porta, cella più densa o edificio) o
+   3 (l'errore del GPS dalle righe nascoste dei gatti fermi).
 
-Regole: la previsione prima di ogni misura, con la base letta dal JSON della misura
-precedente (#39); ogni errore e ogni previsione sbagliata subito in `lessons.md`. Test
-statistici a 4 errori standard (#28). Senza luogo il motore non deve cambiare: `python -m sim.fingerprint`
-prima e dopo (L2a); se cambia, si rifà la taratura (#17). Licenza del LiDAR CC
-BY-SA 4.0: i dati derivati restano in `privato/`. Agenti mai Fable; lavora tu, al massimo un
-Sonnet per una lettura grossa, dicendo perché. Niente commit né push finché non li chiede
+Regole: previsione prima di ogni misura; ogni errore in `lessons.md`; test a 4 errori standard;
+un «identico» si prevede solo se il cambio non tocca nessuna cella (#54); una mappa si giudica con
+S accanto a ogni test di associazione (#55); un peso forte nel passo si prova sull'invariante delle
+distanze prima (#58). Agenti mai Fable; lavora tu. Niente commit né push finché non li chiede
 Marcello. Prima di un commit i documenti: `FATTO.md`, `STATO.md`, `simulatore.md`,
-`riferimenti.md`, `CLAUDE.md` se cambiano i comandi.
+`riferimenti.md`, `CLAUDE.md`, README.
 
 Aspetta Marcello: il nome del progetto.
 
-A fine lavoro: resoconto in due punti (cosa è stato implementato, come lo provo) e il
-prompt per la sessione dopo in `build/prompt-next.md`.
+A fine lavoro: resoconto in due punti (cosa è stato implementato, come lo provo) e il prompt
+per la sessione dopo in `build/prompt-next.md`.

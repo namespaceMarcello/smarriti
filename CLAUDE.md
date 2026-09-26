@@ -13,6 +13,8 @@ costruisce con `proto/luogo3d/`; i prossimi passi sono in `docs/STATO.md`.
 dataset aperto è un dato da sequenziare, dove gli altri lo leggono da solo.
 Misurare prima di credere; scrivere la previsione prima di misurare; inventare la prossima
 idea dai numeri. Una premessa che dà zero è una scoperta: si scrive, si chiude, avanti.
+Nessun limite dato per scontato: un'idea, per quanto assurda, si prova prima di giudicarla, e se
+la matematica che serve non esiste si inventa (Marcello, 2026-09-26).
 
 Stack: simulatore in Python 3.12 (`numpy`, `scipy`, `matplotlib`, `pytest`; `pyshp` e
 `tifffile` per il luogo in 3D), codice e commenti in inglese. Il sito: da decidere
@@ -96,11 +98,16 @@ Stack: simulatore in Python 3.12 (`numpy`, `scipy`, `matplotlib`, `pytest`; `pys
 .venv/Scripts/python -m sim.compare               # immagine prima / anelli / ora (out/confronto-prima-dopo.png), 2 s
 .venv/Scripts/python -m pytest -q                 # ~50 s; --runslow aggiunge i test lenti (~20 s)
 .venv/Scripts/python -m sim.fingerprint           # impronta del motore senza luogo: prima e dopo ogni modifica, 5 s
-.venv/Scripts/python -m proto.gps.build_cats 72   # gatti GPS di Cat Tracker: tracce e luogo da OSM (riprende dalla cache)
-.venv/Scripts/python -m proto.gps.score privato/dati/cattracker   # il luogo contro i GPS di gatti veri (L5)
+.venv/Scripts/python -m proto.gps.build_cats 72   # gatti GPS di Cat Tracker del Regno Unito: tracce e luogo da OSM (riprende dalla cache)
+.venv/Scripts/python -m proto.gps.build_cats 0 --datasets us,au,nz --home-rows all --workers 3 --out privato/dati/cattracker-conferma   # i gatti di L7, ~1-2 ore
+.venv/Scripts/python -m proto.gps.score privato/dati/cattracker   # il luogo contro i GPS di gatti veri (L5); L7: --map walls_sel --sigma 0 --households 20
+.venv/Scripts/python -m proto.gps.pieces privato/dati/cattracker  # un pezzo del luogo alla volta, esplorativo (L6), 7 s
+.venv/Scripts/python -m proto.gps.classes build privato/dati/cattracker-conferma   # L13: tipo, impronta, fasce (2 min); poi inside | fit | pieces
+.venv/Scripts/python -m proto.gps.classes test privato/dati/cattracker-conferma --test privato/dati/cattracker --scheme bands6 --sigma 0   # una mappa a classi sul Regno Unito
 .venv/Scripts/python -m proto.luogo3d.fetch privato/luogo-prova.json privato/luogo      # dati aperti del luogo
 .venv/Scripts/python -m proto.luogo3d.world privato/luogo-prova.json privato/luogo      # griglia da 2 m, 3 s
-.venv/Scripts/python -m proto.luogo3d.variants privato/luogo-prova.json privato/luogo   # le tre mappe, 4 s
+.venv/Scripts/python -m proto.luogo3d.variants privato/luogo-prova.json privato/luogo   # le tre mappe, 4 s (--reach-weight: le ancore di prima di L9; --preference lost: il gatto che si nasconde, L14)
+.venv/Scripts/python -m proto.luogo3d.metre privato/luogo-prova.json privato/luogo      # cosa aggiunge il LiDAR a 1 m (L8), 2 s
 .venv/Scripts/python -m sim privato/caso-luogo-prova.json --now 2026-09-26T20:00 --out privato/out-caso  # caso con il luogo: mappa a 4 m
 ```
 

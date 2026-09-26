@@ -62,3 +62,55 @@ con la stessa mappa ruotata (punteggio logaritmico, permutazione, protocollo scr
 Su 45 gatti del Regno Unito: effetto 2%, p = 0,030, non significativo. Si prova: `python -m
 proto.gps.build_cats 72`, `python -m proto.gps.score privato/dati/cattracker`, `pytest -q
 tests/test_gps_score.py`.
+### 2026-09-26 — Il luogo smontato sui gatti veri (L6) e la conferma preparata (L7)
+`proto/gps/pieces.py`: il punteggio di L5 con un pezzo della mappa alla volta, appaiato sugli
+stessi gatti e sulle stesse rotazioni. Il segnale sta negli edifici come muri e nella
+selezione di Hanmer, senza lisciatura (D 0,11 contro 0,02 della mappa del motore); la
+raggiungibilità toglie un poco, le strade niente. `build_cats.py` scarica anche Stati Uniti,
+Australia e Nuova Zelanda (571 gatti, casa dalle righe nascoste comprese, due server
+Overpass); `score.py` sceglie mappa e σ e non salta più gatti in silenzio. Si prova: `python
+-m proto.gps.pieces privato/dati/cattracker`, `pytest -q tests/test_gps_score.py`.
+### 2026-09-26 — Il LiDAR a 1 m nel mondo del luogo (L8)
+`fetch.py ... lidar` scarica le 64 tessere del riquadro arrotondato (DTM e DSM, Città
+Metropolitana di Napoli, CC BY-SA 4.0), `world.py` ne fa `dtm1`, `dsm1`, `hmax1` (il motore non
+li legge: livelli vecchi identici al bit). `metre.py` misura: con il terreno a 1 m un edificio
+su cinque entro 200 m ha il tetto a portata di salto. Si prova: `python -m proto.luogo3d.fetch
+privato/luogo-prova.json privato/luogo lidar`, poi `world` e `metre` sugli stessi argomenti.
+
+**2026-09-26 — Il motore dopo L7 (L9).** Le ancore pesano `sel` sulle celle dove il gatto può
+stare, senza la raggiungibilità (`Place.weight`; la regola di prima con `reach_weight=True`).
+Senza luogo l'impronta è identica; sul luogo di prova ogni numero cambia meno dell'1%. Si
+prova: `python -m sim.fingerprint`, `python -m proto.luogo3d.variants privato/luogo-prova.json
+privato/luogo` (e `--reach-weight` per la base), `pytest -q`.
+
+**2026-09-26 — L'acqua non è un posto (L11) e la rilettura di L9-L10 (L9b, L10b).** Nel motore
+l'acqua di WorldCover (classe 80) non è più `open`: non ci si sta e non ci si passa, tranne sotto
+una strada (i ponti). In `score.py` la mappa `full` di L5 è scritta per esteso ed `engine` è la
+mappa del motore; `pieces.py` dà in più le quote per distanza dagli edifici per paese e le celle
+irraggiungibili. Si prova: `pytest -q` (`test_water_is_no_place_for_a_cat`,
+`test_full_stays_the_map_of_L5_and_engine_follows_the_engine`), `python -m proto.gps.pieces
+privato/dati/cattracker-conferma --households 20` (i numeri di L7 identici al bit).
+
+**2026-09-26 — La mappa come previsione (L12).** `combine` di `score.py` restituisce anche il
+punteggio proprio delle sole posizioni vere (`S_real`), e `pieces.py` lo stampa accanto a D: la
+mappa del motore ha D > 0 ma S < 0 (perde contro la radiale). Si prova: `python -m
+proto.gps.pieces privato/dati/cattracker-conferma --households 20` (S fra graffe), `pytest -q`
+(`test_a_map_can_rank_the_real_fixes_higher_and_still_forecast_worse`).
+
+**2026-09-26 — Dentro gli edifici per tipo, il metro con l'errore del GPS, la prova sul Regno Unito
+(L13).** `proto/gps/classes.py`: per ogni gatto GPS i tag degli edifici dalla risposta di OSM
+ridipinta (griglia identica, controllata), 31 classi fini (casa, edifici per tipo e impronta,
+fasce di distanza per superficie), la mappa a classi nella posizione vera sfocata dall'errore del
+GPS prima del punteggio, il fit dei pesi (Gibbs a σ 0), la prova a paese escluso e su un secondo
+insieme. Risultato: tipo e superficie non contano, la candidata (la casa sfocata) non passa il
+Regno Unito, regge solo la mappa per fasce (+0,002-0,004). Si prova: `python -m proto.gps.classes
+build|inside|fit|pieces privato/dati/cattracker-conferma`, `... test privato/dati/cattracker-conferma
+--test privato/dati/cattracker`, `pytest -q tests/test_gps_classes.py`.
+
+**2026-09-26 — Il gatto smarrito che si nasconde negli edifici, come opzione (L14).**
+`PlaceParams(preference="lost")`: fuori le fasce dei residenti di L13 al posto di Hanmer, dentro gli
+edifici diversi da casa che toccano terreno raggiungibile il riparo di Huang (`hide` 3,58);
+`Place.pref` è quello che pesano ancore e passo, `Place.sel` resta Hanmer per le mappe GPS. Il
+motore resta Hanmer: con `lost` le distanze vicine si allungano (xfail stretto). Si prova:
+`python -m proto.luogo3d.variants privato/luogo-prova.json privato/luogo --preference lost`
+(`varianti-24h-lost.json`), `pytest -q tests/test_place3d.py -k lost`.

@@ -1,6 +1,6 @@
 """Download the open data for one place: the prototype of the place in 3D.
 
-    python -m proto.luogo3d.fetch <place.json> <out_dir>
+    python -m proto.luogo3d.fetch <place.json> <out_dir> [osm,gbfp,tinitaly,worldcover,cop30,lidar]
 
 place.json: {"lat": .., "lon": ..}. Only a coarse box leaves the machine (rounded to
 0.01 degrees, a few km wide): never the address, never the exact point.
@@ -11,6 +11,8 @@ Sources (docs/riferimenti.md section B):
 - TINITALY/1.1 (INGV, CC BY 4.0): bare-ground elevation, 10 m, UTM 32N.
 - Copernicus DEM GLO-30 (ESA): surface elevation (buildings and trees included), 30 m.
 - ESA WorldCover 2021 v200 (CC BY 4.0): land cover, 10 m.
+- LiDAR of the Città Metropolitana di Napoli (2009, CC BY-SA 4.0): terrain and surface, 1 m,
+  UTM 33N; only where the place is in its province.
 """
 from __future__ import annotations
 
@@ -154,6 +156,59 @@ def fetch_cop30(box, out: Path) -> None:
     np.savez(out / "cop30.npz", z=z, lat_top=top, lon_left=left, res=1 / 3600)
 
 
+SIT_WFS = "https://sit.cittametropolitana.na.it/geoserver/ows"
+
+
+def read_asc(path: Path):
+    """An ESRI ASCII grid: (values north row first, NaN for no data, x of the west edge, y of the north edge, cell)."""
+    head = {}
+    with open(path, encoding="ascii") as f:
+        for _ in range(6):
+            k, v = f.readline().split()
+            head[k.lower()] = float(v)
+        z = np.loadtxt(f, dtype=np.float32, ndmin=2)
+    c = head["cellsize"]
+    x0 = head.get("xllcorner", head.get("xllcenter", 0) - c / 2)
+    y0 = head.get("yllcorner", head.get("yllcenter", 0) - c / 2)
+    z[z == head.get("nodata_value", -9999)] = np.nan
+    assert z.shape == (int(head["nrows"]), int(head["ncols"])), (path, z.shape)
+    return z, x0, y0 + z.shape[0] * c, c
+
+
+def fetch_lidar(box, out: Path, cache: Path) -> None:
+    """LiDAR of the Città Metropolitana di Napoli (volo 2009, CC BY-SA 4.0): terrain (DTM) and
+    surface (DSM, first pulse) at 1 m, 500 m ASCII tiles in UTM 33N. The tile index is asked with
+    the coarse box and every tile of it is downloaded (a smaller set would tell where home is);
+    the mosaic goes to lidar.npz. Derived data under the same licence: it stays in privato/."""
+    s, w, n, e = box
+    xs, ys = to_utm([s, s, n, n], [w, e, w, e], 33)
+    bb = ",".join(f"{v:.0f}" for v in (min(xs), min(ys), max(xs), max(ys))) + ",EPSG:32633"
+    layers = {}
+    for kind, name in (("dtm", "sit:quadro_unione_lidar_dtm"), ("dsm", "sit:quadro_unione_lidar_dsm")):
+        q = urllib.parse.urlencode({"service": "WFS", "version": "1.1.0", "request": "GetFeature", "typeName": name,
+                                    "outputFormat": "application/json", "srsName": "EPSG:32633", "bbox": bb})
+        tiles = []
+        for f in json.loads(get(f"{SIT_WFS}?{q}", timeout=120))["features"]:
+            url = f["properties"]["url"].strip()
+            path = cache / f"lidar_{kind}" / url.rsplit("/", 1)[1]
+            if not path.exists():
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(get(url, timeout=600))
+            tiles.append(read_asc(path))
+        left, top = min(t[1] for t in tiles), max(t[2] for t in tiles)
+        right = max(t[1] + t[0].shape[1] * t[3] for t in tiles)
+        bottom = min(t[2] - t[0].shape[0] * t[3] for t in tiles)
+        assert all(t[3] == 1.0 for t in tiles)
+        z = np.full((int(round(top - bottom)), int(round(right - left))), np.nan, np.float32)
+        for a, x0, y1, _ in tiles:
+            r, c = int(round(top - y1)), int(round(x0 - left))
+            z[r:r + a.shape[0], c:c + a.shape[1]] = a
+        layers[kind] = (z, left, top, len(tiles))
+    (dtm, left, top, nt), (dsm, left2, top2, _) = layers["dtm"], layers["dsm"]
+    assert (left, top, dtm.shape) == (left2, top2, dsm.shape), "DTM and DSM tiles differ"
+    np.savez_compressed(out / "lidar.npz", dtm=dtm, dsm=dsm, left=left, top=top, res=1.0, zone=33, tiles=nt)
+
+
 def main(argv: list[str]) -> None:
     place = json.loads(Path(argv[0]).read_text(encoding="utf-8"))
     out = Path(argv[1]); out.mkdir(parents=True, exist_ok=True)
@@ -162,7 +217,10 @@ def main(argv: list[str]) -> None:
     print("box", box)
     for name, fn in (("osm", lambda: fetch_osm(box, out)), ("gbfp", lambda: fetch_gbfp(box, out, cache)),
                      ("tinitaly", lambda: fetch_tinitaly(box, out, cache)),
-                     ("worldcover", lambda: fetch_worldcover(box, out)), ("cop30", lambda: fetch_cop30(box, out))):
+                     ("worldcover", lambda: fetch_worldcover(box, out)), ("cop30", lambda: fetch_cop30(box, out)),
+                     ("lidar", lambda: fetch_lidar(box, out, cache))):
+        if len(argv) > 2 and name not in argv[2].split(","):  # optional third argument: only these sources
+            continue
         t = time.time(); fn(); print(name, f"{time.time() - t:.1f} s")
 
 

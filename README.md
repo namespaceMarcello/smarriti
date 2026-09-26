@@ -50,12 +50,14 @@ like any other.
 Simulator v0, September 2026: calibrated on the published distances, and its map beats
 the simpler ring model (on synthetic cases the area to search before reaching the animal
 is 0.39 times the rings' at the median, 0.42 at the 90th percentile; `docs/MISURE.md`).
-Next: the place in 3D, from open data (buildings and their heights, the floor, gardens,
-walls, steps, streets, slopes), so that the map knows not only how far but where. A first
-prototype runs outside the engine (`proto/luogo3d/`): it builds a 2 m grid of one place from
-OpenStreetMap, 3D-GloBFP building heights, the TINITALY terrain and ESA WorldCover, keeps the
-calibrated distance and lets the place choose the direction (published habitat selection
-of cats, Hanmer et al. 2017). The documentation is in
+The place is in the engine: a 2 m grid of the place from open data (OpenStreetMap, building
+heights, terrain, land cover; `proto/luogo3d/`) chooses the direction while the calibrated
+distance stays. It is tested on the GPS tracks of 437 pet cats in four countries (Cat Tracker,
+Kays et al. 2020): their positions fall inside buildings less often than chance, but for cats
+at home the open-data landscape improves the forecast of where they are only a little (at most
+0.004 nats per position over a map that ignores the place). Next: how a lost cat differs from
+one at home (it hides, in garages, sheds and under houses, as 1,210 lost cats of Huang et al.
+2018 show), without changing the calibrated distances. The documentation is in
 Italian for now: `docs/progetto.md` (what we build), `docs/simulatore.md` (the model),
 `docs/matematica.md`, `docs/riferimenti.md` (studies and data), `docs/STATO.md`.
 

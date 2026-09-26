@@ -626,8 +626,618 @@ stimata), 45 con almeno 20 posizioni fra 20 e 280 m.
 Verdetto: **il luogo, così com'è, non è dimostrato sui gatti veri.** Se c'è, l'effetto è
 piccolo (2% di densità in più). Quindi la mappa più stretta di L3 (al 50% 0,59 ha invece
 di 1,04) non è sostenuta dai dati veri: è coerente con il modello (C1), non con i gatti.
+**Correzione (2026-09-26, dopo L6)**: i gatti con almeno 20 posizioni erano 46, non 45. Uno
+(247 posizioni utili) è stato saltato in silenzio da un difetto: il nome con uno spazio, la
+cartella con il trattino basso (`lessons.md` #45). Riletto con lui, non un secondo lancio:
+D = 0,028, p = 0,009 (`score-L5-46cats.json`): il verdetto non cambia.
 Prossimo, dichiarato esplorativo (non un altro test di conferma sugli stessi gatti): smontare
 il luogo pezzo per pezzo sui 45 gatti (solo edifici come muri, solo la selezione, solo la
 raggiungibilità, senza la lisciatura) per vedere quale pezzo porta il segnale e quale lo
 toglie; poi un test di conferma nuovo, con il suo protocollo, sui gatti di Stati Uniti,
 Australia e Nuova Zelanda (gli stessi dati CC0), con il numero di gatti calcolato prima.
+
+### 2026-09-26 — L6 — smontare il luogo sui gatti veri (**esplorativo**, scritto prima di lanciare)
+Cosa: il punteggio di L5 sugli stessi 45 gatti, con le stesse rotazioni e le stesse estrazioni
+del nullo (seme 0), un pezzo della mappa alla volta (`proto/gps/pieces.py`). Le mappe, prima
+della lisciatura: `walls` (1 fuori dagli edifici, 0 dentro), `sel` (la selezione di Hanmer
+ovunque, l'edificio vale 1), `walls_sel`, `reach` (la raggiungibilità: gli edifici sono già
+irraggiungibili), `reach_noroads` (ogni strada costa la sua lunghezza: restano solo i giri
+attorno agli edifici), `full_noroads`, `full` (la mappa di L5 e del motore); ognuna lisciata
+con σ 0, 5, 10, 20 m. In più le quote delle posizioni per tipo di posto e per distanza
+dall'edificio più vicino, contro le ruotate. Sono 28 mappe sugli stessi gatti: **nessun p di
+questa voce conferma niente**, serve a scegliere la mappa per la conferma (L7).
+Base (`privato/dati/cattracker/score-confirmatory.json`): `full` a 10 m D = 0,0212, p = 0,030,
+scarto fra gatti 0,088; quote vere contro ruotate: giardino e aperto 0,558 contro 0,521,
+costruito (bordo, strada, edificio) 0,367 contro 0,385, naturale 0,075 contro 0,094.
+Previsioni:
+- P1 (integrità): `full` a 10 m ridà L5 al bit: D = 0,0212, p = 0,0302;
+- P2 (i pezzi a 10 m, D in nat per posizione): `walls` 0,000-0,025; `sel` 0,000-0,025;
+  `walls_sel` 0,005-0,030; `reach` 0,000-0,030; senza le strade entro 0,010 dalle stesse
+  mappe con le strade; nessuna mappa a p < 0,001;
+- P3 (la lisciatura, `full`): σ 20 m 0,010-0,035; σ 5 m da −0,02 a 0,03; σ 0 da −0,05 a
+  +0,15, deciso dalle posizioni dentro gli edifici (−4,6 nat l'una): sale se i gatti veri ci
+  cadono meno delle ruotate; lo scarto fra gatti a σ 0 almeno il doppio di quello a 10 m;
+- P4 (tipi di posto, vere su ruotate): `veg` 0,80 (è il naturale di L5); edificio (`roof`)
+  0,80-1,00; strada 0,75-0,95; bordo 0,90-1,10; aperto 1,00-1,12; giardino di OSM (parchi
+  compresi) 0,80-1,30;
+- P5 (distanza dall'edificio più vicino, vere su ruotate): dentro 0,80-1,00; 3-6 e 6-12 m
+  1,00-1,15; oltre 24 m 0,70-1,00.
+Regola per la mappa della conferma, fissata prima: resta `full` a 10 m (la mappa del motore)
+a meno che un'altra la superi di più di 2 errori standard appaiati (`vs_full10`); allora si
+prende quella con lo scarto appaiato più alto, e il motore cambia solo se L7 la conferma.
+Comando: `python -m proto.gps.pieces privato/dati/cattracker` (scrive `pieces.json`).
+Risultato (`privato/dati/cattracker/pieces-L6.json`, 45 gatti, 7 s; D in nat per posizione):
+- P1 ✓: `full` a 10 m ridà L5 al bit (D 0,0212, p 0,0302);
+- P2 ✓: a 10 m `walls` 0,0074, `sel` 0,0192, `walls_sel` 0,0259, `reach` 0,0028; senza le
+  strade 0,0014 e 0,0199; a 10 m nessuna mappa sotto p 0,001 (la più bassa 0,0055);
+- P3: σ 20 m 0,0135 ✓; **σ 5 m 0,0383 ✗** (previsto fino a 0,03); σ 0 0,1057 ✓, scarto fra
+  gatti 0,226 contro 0,088 ✓. **Meno lisciatura, più segnale**, fino a σ 0: l'errore del GPS
+  non cancella la forma degli edifici a 2 m;
+- P4: `veg` 0,81 ✓; edificio 0,88 ✓ (z −2,9); bordo 0,92 ✓; aperto 1,07 ✓ (z +2,4); **strada
+  1,09 ✗** (previsto 0,75-0,95); giardino 1,32 ✗ di poco (lo 0,4% delle posizioni: rumore);
+- P5 ✓: dentro 0,88; 0-3 m 0,94; 3-6 m 1,10; 6-12 m 1,06; 12-24 m 1,00; oltre 24 m 0,98. Le
+  posizioni vere stanno a 3-12 m dagli edifici (i giardini accanto alle case), meno dentro e
+  a ridosso;
+- i pezzi appaiati sugli stessi gatti: gli edifici come muri, data la selezione, +0,086 a
+  σ 0 (z 2,9), +0,021 a 5 m (z 2,7), +0,007 a 10 m; la raggiungibilità **toglie** 0,005 a
+  ogni σ (z da −0,5 a −1,1); il costo delle strade 0,000 (z 0);
+- la regola: superano `full` a 10 m di più di 2 errori standard appaiati 9 mappe; lo scarto
+  appaiato più alto è `walls_sel` a σ 0 (+0,090, z 3,1), che ha anche l'effetto per gatto
+  più alto (D sullo scarto fra gatti 0,50, contro 0,24 della mappa del motore). **Per L7:
+  `walls_sel`, σ 0.** Con il gatto recuperato (46, `pieces.json`) la scelta non cambia:
+  `walls_sel` σ 0 D 0,113 (errore 0,032, scarto 0,217), +0,084 su `full` a 10 m.
+Verdetto: sui gatti veri il segnale del luogo sta negli **edifici come muri** e nella
+**selezione di Hanmer**; la raggiungibilità (i giri attorno agli edifici, il costo delle
+strade) non ne porta, anzi ne toglie un poco. Esplorativo: la conferma è L7. Una riserva
+sulla lettura, **corretta lo stesso giorno** dagli studi sul GPS (`riferimenti.md`, «Il GPS dei
+gatti»): sotto gli alberi il fix riesce (circa 100%, 2 m di errore in più), quindi la quota di
+`veg` sotto 1 è del gatto; a ridosso degli edifici si perde un fix su quattro e in casa
+quattro su cinque, quindi il bordo (0,92) e l'edificio (0,88) sotto 1 possono essere in parte
+del GPS. Per un gatto smarrito nascosto in un garage o sotto un portico conta il gatto.
+
+### 2026-09-26 — L7 — il luogo sui gatti di Stati Uniti, Australia e Nuova Zelanda (conferma; protocollo scritto prima del punteggio)
+Cosa: la mappa scelta in L6 (`walls_sel`: la selezione di Hanmer sulle celle fuori dagli
+edifici, 0 dentro, senza raggiungibilità; σ 0; il pavimento all'1% della media dell'anello
+come in L5) contro le posizioni GPS di gatti di casa che non hanno toccato la scelta: Cat
+Tracker di Stati Uniti (`move.885`), Australia (`move.876`) e Nuova Zelanda (`move.879`), CC0.
+Dati (scaricati e in costruzione mentre si scrive; nessun punteggio calcolato): i gatti con
+almeno 100 posizioni tenute dagli autori sono 571 (135 · 300 · 136). Nei tre file circa il 90%
+delle righe è nascosto dagli autori (`visible` falso): sono più vicine a casa (mediana 18-22 m
+contro 26-30 delle visibili) e in un gatto guardato ora per ora sono i periodi da fermo, in
+grappoli di ±20 m; il file del Regno Unito era già pubblicato senza (98% visibili, ~180 righe
+per gatto). Si punteggiano **solo le posizioni visibili**; **la casa è la cella da 10 m con più
+righe, nascoste comprese** (il gatto fermo in casa: con le sole visibili la casa si sposta di
+10 m in mediana e di 30-48 m in un gatto su dieci). Il luogo da OSM come per il Regno Unito
+(±320 m, celle da 2 m); si tiene il gatto se c'è un edificio di OSM entro 30 m dalla casa e
+se ha almeno 20 posizioni fra 20 e 280 m.
+Test: come L5 (999 rotazioni per gatto, 9.999 permutazioni, seme 0), **significativo se
+p < 0,001**, una coda. **Un solo lancio**, con tutti i gatti che passano i filtri, qualunque
+sia il loro numero; niente aggiunte né cambi dopo il risultato. Il JSON registra l'impronta
+dei dati letti (`inputs_sha1`).
+Numero di gatti, con il margine di #42 (sui 46 gatti di L6): l'effetto al limite basso del suo
+intervallo al 95% (0,113 − 1,96 × 0,032 = 0,050: assorbe anche parte del vantaggio di aver
+scelto la migliore fra 28 mappe), lo scarto fra gatti al limite alto (0,217 → 0,273): per
+l'80% di potenza a p < 0,001 servono **464 gatti** (con i valori puntuali 58). Se ne
+aspettano 350-450 buoni: potenza al margine 63-78%, ai valori puntuali ~100%. Un risultato
+non significativo quindi non basta a dire che il luogo non conta: si leggerà con
+l'intervallo di D.
+Previsione:
+- D fra 0,03 e 0,12 nat per posizione, **p < 0,001** (la scelta fra 28 gonfia lo 0,113 di L6;
+  nei quartieri con lotti più larghi gli edifici sono meno e il segnale dei muri scende con
+  loro);
+- gatti con il proprio p < 0,05: 10-30%;
+- secondari, solo descrittivi (`pieces.py` sulla stessa cartella, e D per paese): la mappa del
+  motore (`full`, 10 m) D 0,005-0,04; la raggiungibilità di nuovo sotto zero appaiata; le
+  posizioni dentro gli edifici 0,80-0,95 delle ruotate.
+Cosa segue: p < 0,001 → il luogo punta dove stanno i gatti veri; nel motore le ancore pesano
+`sel` sulle celle libere, senza la raggiungibilità (si rifanno L2-L3 e l'impronta senza luogo).
+p ≥ 0,001 → non confermato: la mappa più stretta non si presenta come più precisa.
+**Correzione al protocollo (stesso giorno, prima del lancio, nessun punteggio visto)**: i gatti
+non sono indipendenti. Fra i 571 candidati le case sono 497 (case a meno di 20 m: 53 coppie,
+7 terne, una da 4, una da 5), e i gatti di una casa girano negli stessi giardini: ruotarli
+separatamente stringe il nullo e dà p troppo piccoli (`lessons.md` #48). Quindi **i gatti
+della stessa casa ruotano insieme**, con gli stessi angoli, e il nullo estrae un angolo per
+casa; D resta la media sui gatti. Riletto così il Regno Unito (46 gatti, 37 case): mappa del
+motore p 0,011 invece di 0,009; `walls_sel` σ 0 p 0,0015 invece di 0,001, errore di D con le
+case come unità 0,030 invece di 0,032: la potenza calcolata sopra regge.
+Comando: `python -m proto.gps.score privato/dati/cattracker-conferma --map walls_sel --sigma 0
+--households 20`.
+Risultato (un solo lancio, `privato/dati/cattracker-conferma/score.json`, `inputs_sha1`
+25233a1c…): 571 gatti, 399 luoghi costruiti (172 senza un edificio di OSM entro 30 m),
+nessun errore del server, nessuna risposta con `remark`; **391 gatti in 345 case**.
+- D = **0,076** nat per posizione ✓ (previsto 0,03-0,12); **p = 0,0001** ✓ (soglia 0,001):
+  **significativo**. Errore di D con le case come unità 0,014;
+- gatti con il proprio p < 0,05: 10,0% ✓ (al limite basso di 10-30%);
+- secondari (`pieces.json`, descrittivi): la mappa del motore (`full`, 10 m) D 0,009 ✓
+  (0,005-0,04), p 0,007; la raggiungibilità appaiata a 10 m +0,002 ± 0,002 ✗ (prevista sotto
+  zero: qui è neutra); dentro gli edifici 0,90 delle ruotate ✓ (0,80-0,95). Quasi tutto il
+  segnale viene dai muri: `walls` da sola a σ 0 dà 0,074, `sel` da sola 0,005. Per paese:
+  Australia 0,138 ± 0,022 (148 gatti), Nuova Zelanda 0,061 ± 0,027 (123), **Stati Uniti
+  0,016 ± 0,016 (120), non distinguibile da zero** (lotti larghi, pochi edifici vicini).
+Verdetto: **il luogo punta dove stanno i gatti veri**, confermato su gatti che non hanno
+toccato la scelta: alle posizioni vere la mappa con edifici come muri e selezione dà l'8% di
+densità in più della stessa mappa ruotata. Il segnale è soprattutto «non dentro gli edifici»
+(con l'errore del GPS a ridosso dei muri, `riferimenti.md`), la selezione aggiunge poco, e
+negli Stati Uniti non si vede. La raggiungibilità: in L6 toglieva un poco, qui è neutra.
+
+### 2026-09-26 — L8 — cosa aggiunge il LiDAR a 1 m sul luogo di prova (scritto prima di lanciare)
+Cosa: il LiDAR della Città Metropolitana (2009, 32 tessere DTM e 32 DSM del riquadro
+arrotondato) nel mondo del luogo (`dtm1`, `dsm1`, `hmax1`: il motore non li legge), entro
+200 m da casa: il terreno contro TINITALY a 10 m, l'altezza delle cose sopra il suolo fuori
+dagli edifici (`hmax1`, la più alta dei quattro pixel della cella), e quanto del luogo si
+raggiunge con le altezze (variante 3) quando il terreno è quello a 1 m e ogni tetto sta alla
+sua superficie misurata.
+Base (L1, variante 3 con TINITALY e 3D-GloBFP): nessun tetto raggiungibile entro 200 m,
+raggiungibilità media a terra 0,74 (0,84 nella variante 2); altezza mediana degli edifici
+8,0 m (`world.npz`).
+Previsioni:
+- P1 (integrità): variante 2 0,84 ± 0,02, variante 3 con TINITALY 0,74 ± 0,02, tetti 0;
+- P2 (terreno): scarto mediano da TINITALY 0,3-1,5 m, al 95° percentile 2-6 m; celle libere
+  vicine con più di 1,5 m di salto: 0,5-5% con il LiDAR, sotto lo 0,1% con TINITALY;
+- P3 (sopra il suolo, fuori dagli edifici): sotto 0,3 m 25-45%; 0,3-1,5 m 10-20%; 1,5-4 m
+  10-25%; da 4 m 20-40%;
+- P4: altezza mediana degli edifici dal LiDAR entro 2 m da 8,0;
+- P5 (variante 3 con il LiDAR): tetti raggiungibili 2-20%; terra raggiungibile 85-100%;
+  raggiungibilità media a terra da 0,59 a 0,74.
+Comando: `python -m proto.luogo3d.metre privato/luogo-prova.json privato/luogo` (scrive
+`metre.json`).
+Risultato (`privato/luogo/metre.json`; i livelli che il motore legge restano identici al bit):
+- P1 ✓: variante 2 0,835, variante 3 con TINITALY 0,736, tetti 0;
+- P2: scarto mediano da TINITALY **2,6 m ✗** (previsto 0,3-1,5), al 95° percentile **10,1 m
+  ✗** (previsto 2-6); non è uno spostamento (spostando TINITALY fino a ±8 m scende solo a
+  2,3 m, senza un minimo): è TINITALY in collina, che a 10 m non vede tagli, terrazzamenti e
+  riempimenti. Salti di oltre 1,5 m fra celle libere vicine 1,6% ✓ (0 con TINITALY ✓);
+- P3: sotto 0,3 m 22% ✗ (previsto 25-45), 0,3-1,5 m 14% ✓, 1,5-4 m 29% ✗ (previsto
+  10-25), da 4 m 35% ✓: fuori dagli edifici due celle su tre hanno qualcosa sopra 1,5 m
+  (alberi, muri, siepi, tettoie). `hmax1` prende il più alto dei quattro pixel: sta in alto;
+- P4 ✓ alla lettera, non nella sostanza: 7,7 m contro 8,0, ma 8,0 è la mediana per edificio e
+  la misura è per cella; sulle stesse celle 3D-GloBFP e OSM danno 10,7 m. Il LiDAR vede gli
+  edifici 3 m più bassi (i bordi mezzo tetto e mezzo suolo abbassano; nel 2009 mancano i piani
+  aggiunti dopo). Base con un'altra definizione: `lessons.md` #39 di nuovo;
+- P5: tetti raggiungibili per cella **23% ✗** (previsto 2-20%), gonfiato dai bordi: una cella
+  da 2 m sul bordo di un'impronta mescola tetto e suolo e fa scalini che non ci sono. Con ogni
+  tetto piano alla quota mediana del suo edificio (`variant3_lidar_flat_roofs`) **9%** delle
+  celle (5,7% di quelle interne), **49 edifici su 221** ✓; terra raggiungibile 99,97% ✓;
+  raggiungibilità media a terra 0,68 ✓.
+Verdetto: il LiDAR rimette in gioco la variante 3 (`lessons.md` #35): con il terreno a 1 m un
+edificio su cinque entro 200 m ha il tetto a portata di salto, e la raggiungibilità a terra
+scende da 0,74 a 0,68 (i terrazzamenti si scendono, non si salgono). Ma sui gatti veri la
+raggiungibilità non porta segnale (L6): prima di accendere la 3 serve una prova che tetti e
+salti contino (uno studio, o gatti GPS in collina). I dati derivati restano in `privato/`
+(CC BY-SA 4.0).
+**L8b — le altezze degli edifici, per edificio** (previsione scritta prima): entro 200 m,
+esclusa la casa, per ogni edificio con almeno 4 celle interne (l'impronta ristretta di una
+cella, niente bordi), l'altezza del mondo (`bh`: 3D-GloBFP, o per quelli aggiunti da OSM i
+piani × 3 m o la mediana del posto) meno la mediana di `dsm1 − dtm1` sulle celle interne.
+Previsione: mediana della differenza da +1 a +4 m per gli edifici di 3D-GloBFP (i 3 m di P4
+vengono in parte dai bordi, che qui non ci sono); correlazione fra le due altezze 0,3-0,7;
+per quelli aggiunti da OSM la dispersione più larga.
+Risultato (`metre.json`, `building_height_per_building`): 119 edifici di 3D-GloBFP, mediana
+**+2,5 m** ✓ (quartili −0,1 e +4,4), correlazione **0,48** ✓; 8 aggiunti da OSM, mediana
++0,9 m, quartili −2,4 e +4,5 ✓ (più larghi; tutti con la stessa altezza, la mediana del
+posto, quindi nessuna correlazione). Verdetto: dove il LiDAR c'è, le altezze di 3D-GloBFP
+sono alte di 2,5 m e spiegano meno di un quarto della varianza (0,48²): per la variante 3 le
+altezze si prendono dal LiDAR (misura diretta, del 2009), 3D-GloBFP resta per gli edifici
+nuovi e fuori provincia.
+
+### 2026-09-26 — L9 — il motore dopo L7: le ancore pesano `sel` sulle celle libere, senza la raggiungibilità (scritto prima di lanciare)
+Cosa: `Place.weight` passa da `sel × reach` sulle superfici a `sel` sulle celle dove il gatto
+può stare (`ok`); la vecchia regola resta con `PlaceParams(reach_weight=True)`. Stesso banco di
+L2-L3 (`proto.luogo3d.variants`, 50.000 gatti, 24 ore, primo piano, semi 0 e 1000).
+Base, letta ora con le stesse definizioni (`--reach-weight`, identica a L3 al bit, #39):
+variante 2 liberi 23,4 / 56,6 / 180,9 m; C1 0,472 / 0,731; regione al 50% 0,59 ha, al 75%
+6,5 ha; contro la 1 0,503 · 0,337 · 0,160; tipi entro 200 m `veg` 0,035 · `edge` 0,250 ·
+`open` 0,503 · `street` 0,212; a ridosso di un muro (cella libera che tocca un edificio, 8
+vicini) 0,275 contro 0,280 di disponibilità; variazione totale 2 contro 1 0,329. Variante 3:
+regione al 50% 0,59 ha, a ridosso 0,280.
+Previsioni:
+- P1: senza luogo l'impronta (`sim.fingerprint`) identica nelle 7 corse;
+- P2: distanze dei liberi entro ±3% della base (le ancore restano sull'anello: cambia solo la
+  direzione); C1 dentro 0,45-0,58 e 0,70-0,80;
+- P3: la mappa si allarga un poco (le celle raggiunte solo con giri, reach < 1, pesano di più):
+  regione al 50% 0,59-0,70 ha; variazione totale 2 contro 1 fra 0,26 e 0,33;
+- P4: quote per tipo e contro la 1 ciascuna entro ±0,03 della base; a ridosso 0,26-0,30;
+- P5: variante 3 (reach media a terra 0,74 contro 0,84) cambia più della 2: variazione totale
+  3 contro 2 sopra 0,068.
+Risultato (`privato/luogo/varianti-24h.json`; la base in `varianti-24h-reach.json`):
+- P1 ✓: impronta identica nelle 7 corse;
+- P2 ✓: variante 2 liberi 23,4 / 56,7 / 180,6 m (0%, +0,2%, −0,2%); C1 0,472 / 0,731;
+- P3 ✓ al limite: regione al 50% 0,590 ha (base 0,586), al 75% 6,47; variazione totale 2
+  contro 1 0,328;
+- P4 ✓: contro la 1 0,500 · 0,339 · 0,161; tipi `veg` 0,035 · `edge` 0,252 · `open` 0,501 ·
+  `street` 0,213; a ridosso 0,277;
+- P5 ✗: variazione totale 3 contro 2 **0,056** (prevista sopra 0,068): senza la raggiungibilità
+  la 3 si avvicina alla 2 invece di allontanarsene (la differenza fra le due stava soprattutto
+  nella raggiungibilità, e ora nessuna delle due la usa nelle ancore).
+Verdetto: sul luogo di prova togliere la raggiungibilità non cambia quasi niente (ogni numero
+entro l'1%): la regola del motore si semplifica come dice L7 senza perdere nulla. La
+raggiungibilità resta calcolata (dice dove un gatto può stare, `ok`) ma non pesa più.
+
+### 2026-09-26 — L10 — perché gli Stati Uniti non danno segnale in L7 (**esplorativo**, scritto prima di guardare)
+Cosa: sui 391 gatti di L7 (`privato/dati/cattracker-conferma/pieces.json`, nessun lancio nuovo),
+per paese: la quota delle posizioni ruotate dentro un edificio (quanto costruito c'è attorno:
+la copertura di OSM alle distanze del gatto), la stessa per le posizioni vere, il loro
+rapporto, e quanto di D viene dai gatti con poco costruito attorno.
+Previsione: negli Stati Uniti le ruotate dentro gli edifici sono meno della metà che in
+Australia (lotti larghi, o OSM con meno edifici); il rapporto vere/ruotate è simile nei tre
+paesi (0,8-0,95: il gatto evita gli edifici ovunque), quindi il segnale basso degli Stati Uniti
+viene dal poco costruito, non da gatti diversi; D per gatto cresce con la quota ruotata dentro.
+Risultato (D = `walls_sel 0` per gatto, media per gruppo):
+- ruotate dentro gli edifici: Stati Uniti **0,101**, Australia 0,168, Nuova Zelanda 0,185 ✗ (0,6
+  volte l'Australia, non meno della metà); gatti con meno del 5%: 23% · 9% · 5%;
+- vere/ruotate: 0,97 · 0,84 · 0,93 ✗ (non simile: l'Australia evita gli edifici più degli altri);
+- D cresce con il costruito attorno ✓ (Spearman 0,27 sui 391, p 7·10⁻⁸). A pari costruito:
+  fra 0,12 e 0,25 Stati Uniti 0,073 (39 gatti), Nuova Zelanda 0,066 (79), Australia 0,179 (85);
+  fra 0,05 e 0,12: 0,004 · 0,012 · 0,017; sotto 0,05 **negativo**: −0,056 · +0,009 · −0,083.
+Lettura: gli Stati Uniti non hanno gatti diversi, hanno meno costruito attorno (due gatti su
+tre sotto 0,12, contro uno su tre in Australia e uno su cinque in Nuova Zelanda); a pari
+costruito stanno con la Nuova Zelanda. È l'Australia a fare più segnale. Dove il costruito è
+quasi niente la mappa con i muri perde: poche posizioni vere dentro un edificio (GPS, o un
+edificio di OSM che non c'è più) pagano il pavimento all'1% (−4,6 nat) e pesano più del
+guadagno sul resto. Da provare, prima di cambiarlo: il pavimento (1% → 5-10%) sui gatti di L6.
+
+### 2026-09-26 — L9b, L10b — rilettura di L9 e L10 (scritto prima di calcolare)
+Perché: rileggendo, tre cose non erano misurate. (1) In L9 le mappe si sono confrontate solo con
+la 1, mai la nuova con la vecchia, e senza il rumore del seme: «la mappa si allarga un poco» non
+è dimostrato. (2) La spiegazione di P5 (la 3 si avvicina alla 2 perché le separava la
+raggiungibilità) è scritta, non misurata. (3) Il motore ora pesa `sel` sulle celle dove il gatto
+può stare (`ok`: libere **e raggiungibili**), mentre la mappa confermata in L7 (`walls_sel`)
+pesa `sel` su tutte le celle libere, anche quelle che il grafo dice irraggiungibili (cortili
+chiusi da edifici). Inoltre in `proto/gps/score.py` la mappa `full` (quella di L5, `sel × reach`,
+e la predefinita del comando) era `Place.weight`: dopo L9 sarebbe cambiata in silenzio.
+Previsioni:
+- L9b-1: rifatto `pieces` sui dati di L7 con `full` scritta per esteso (`sel × reach`), ogni
+  numero già in `pieces.json` identico al bit;
+- L9b-2 (luogo di prova, variante 2, entro 200 m): celle libere irraggiungibili 1-5% delle
+  libere; la direzione delle ancore fra regola vecchia e nuova, distanza di variazione totale
+  per anello mediata sulle distanze delle ancore, 0,03-0,12; fra variante 2 e 3 con la regola
+  vecchia più del doppio che con la nuova (la spiegazione di P5);
+- L9b-3: con il seme 1 la differenza vecchia/nuova della regione al 50% ha lo stesso ordine
+  (sotto 0,02 ha) e segno qualsiasi: nessun allargamento misurabile;
+- L10b-1: a σ 0 la mappa con i soli muri dà per ogni gatto `D ≈ k × (dentro ruotate − dentro
+  vere)`, con `k = G(fuori) − G(dentro) ≈ 4,7` (il pavimento all'1% vale −4,6 nat): pendenza
+  fra 4,5 e 4,9, R² sopra 0,9. Quindi il pavimento cambia solo la scala di D, e l'idea di
+  provarlo all'1-5-10% (L10) non porta niente;
+- L10b-2: per paese `walls_sel 0` ≈ 4,7 × (dentro ruotate − dentro vere) entro ±0,02; e il
+  paese pesa più per quanto il gatto evita gli edifici che per quanti ce ne sono: gli Stati
+  Uniti con il rapporto vere/ruotate dell'Australia darebbero D ≈ 0,07, con il costruito
+  dell'Australia e il loro rapporto ≈ 0,02;
+- L10b-3: il D negativo dei gatti con meno del 5% di costruito è rumore (|z| < 2);
+- L10b-4 (rifatto `pieces`, descrittivo): posizioni vere su celle libere irraggiungibili come
+  le ruotate entro ±50%, e sotto l'1% delle posizioni; la mappa `engine` (quella del motore
+  dopo L9) a σ 0 entro ±0,005 da `walls_sel`; per paese, vere/ruotate per distanza dal
+  primo edificio: negli Stati Uniti fra 0,93 e 1,07 in ogni fascia, in Australia dentro
+  sotto 0,88 e a 6-12 m sopra 1,05.
+
+### 2026-09-26 — L11 — l'acqua non è un posto dove il gatto può stare (scritto prima di cambiare il motore)
+Cosa: nel motore l'acqua (WorldCover classe 80) finiva nel tipo `open`, cioè giardino e prato
+per Hanmer, con la selezione più alta (1,78). Il gatto ci poteva stare e ci si ancorava più
+volentieri: in un caso vicino al mare, a un lago o a un fiume largo la mappa metteva gatti in
+acqua. Si corregge: l'acqua esce dalle superfici (come gli edifici nella variante 2, quindi fa
+anche da barriera), tranne dove c'è una strada sopra (un ponte).
+Previsione:
+- impronta senza luogo identica;
+- luogo di prova: nel quadrato non c'è acqua di WorldCover (0 celle), quindi ogni numero di
+  `variants` e del caso privato identico a prima della correzione;
+- test sul luogo sintetico con un fiume e un ponte: nessuna cella d'acqua dove il gatto può
+  stare, la riva di là raggiungibile solo dal ponte (costo sopra la distanza in linea d'aria),
+  senza ponte irraggiungibile; a 24 ore nessun gatto libero in acqua.
+Risultato L9b, L10b:
+- L9b-1 ✓: `pieces` rifatto sui dati di L7 (72 s): i 12.427 numeri già in `pieces.json`
+  identici al bit. In `score.py` ora `full` è scritta per esteso (`sel × reach`) ed `engine` è
+  `Place.weight` (`lessons.md` #53);
+- L9b-2: celle libere irraggiungibili entro 200 m **0,03%** ✗ (previste 1-5%: i cortili del
+  luogo di prova non sono chiusi dalle impronte). Direzione delle ancore vecchia/nuova (variazione
+  totale per anello, mediata sulle distanze delle ancore): variante 2 **0,049** ✓, variante 3
+  0,069; fra 2 e 3 con la regola vecchia 0,037, con la nuova **0,000** ✓: le ancore delle due
+  varianti ora coincidono, la spiegazione di P5 è misurata. Perché cambia poco: sulle celle
+  dove il gatto può stare, entro 200 m, la raggiungibilità va da 0,74 (10° percentile) a 0,94
+  (90°). Lo spostamento c'è, ed è lo stesso con ogni seme: ancore su `street` da 0,150 a 0,168,
+  su `open` da 0,481 a 0,468 (nel grafo le strade costano di più, e la raggiungibilità le
+  abbassava);
+- L9b-3 ✓ (rifatto dopo L11, due semi): regione al 50% vecchia → nuova +0,000 e −0,003 ha
+  (seme 0, varianti 2 e 3), −0,006 e +0,003 (seme 1). Segno qualsiasi, sotto 0,01 ha: la mappa
+  non si allarga. La P3 di L9 era ✓ alla lettera, non nella sostanza;
+- L10b-1 ✓: `walls 0` per gatto = 4,87 × (dentro ruotate − dentro vere) + 0,0004, R²
+  **0,9993** su 391 gatti; `walls_sel 0` pendenza 4,91, R² 0,965 (la selezione aggiunge 0,003).
+  Il conto sta in `matematica.md`: k = log(1 + 1/(f(1 − a))), con f il pavimento e a la quota
+  di edifici nell'anello, fra 4,7 e 5,0. **Il D di L7 è un numero solo per gatto: di quanto le
+  posizioni cadono dentro le impronte di OSM meno del caso** (0,138 contro 0,153). Il pavimento
+  cambia solo la scala: l'idea di L10 (provarlo all'1, 5 e 10%) cade;
+- L10b-2 ✓: per paese 4,7 × Δdentro dà Stati Uniti 0,016 (D 0,016), Australia 0,124 (0,138),
+  Nuova Zelanda 0,060 (0,061). Vere/ruotate dentro: 0,966 ± 0,033 · 0,843 ± 0,025 · 0,931 ±
+  0,029; Δdentro Australia − Stati Uniti 0,023, z 4,2. Gli Stati Uniti con il rapporto
+  dell'Australia darebbero 0,075; con il costruito dell'Australia e il loro rapporto 0,027:
+  **pesa più quanto il gatto evita le impronte che quante ce ne sono**. La lettura di L10
+  («non hanno gatti diversi, hanno meno costruito») era sbagliata (`lessons.md` #52);
+- L10b-3 ✗ al limite: gatti con meno del 5% di costruito, Stati Uniti D −0,056 ± 0,028 (z
+  −2,0; dentro vere 0,038 contro 0,028 ruotate), tutti i 46 −0,041 (z −2,0). Fra 12 celle
+  guardate (4 fasce × 3 paesi) una a z 2 se ne aspetta per caso: non è dimostrato né il rumore
+  né l'effetto;
+- L10b-4 (descrittivo): celle libere irraggiungibili 0,025% delle posizioni vere e 0,022% delle
+  ruotate ✓ (troppo poche per dire altro). `engine` a σ 0 contro `walls_sel` −0,0002 ± 0,0006
+  ✓; `full` (con la raggiungibilità) contro `engine` +0,003 ± 0,002 a σ 0, +0,002 ± 0,002 a 10
+  m: neutra anche a σ 0. Vere/ruotate per distanza dal primo edificio (dentro · 0-3 · 3-6 ·
+  6-12 · 12-24 · oltre 24 m): Stati Uniti 0,97 · 1,05 · 1,09 · 1,10 · 1,00 · **0,83** ✗
+  (previsto 0,93-1,07 in ogni fascia); Australia 0,84 ✓ · 1,01 · 1,04 · 1,09 ✓ · 1,05 · 0,93;
+  Nuova Zelanda 0,93 · 0,99 · 1,02 · 1,08 · 0,99 · 0,95. I gatti degli Stati Uniti hanno la
+  stessa forma degli altri (vicino agli edifici sì, lontano no) **tranne dentro**, dove cadono
+  quanto il caso;
+- l'acqua nei mondi dei gatti GPS (non prevista: trovata rileggendo, descrittiva). `build_cats.py`
+  non la disegna, quindi è `open` con selezione 1,78. Acqua interna di OSM (`natural=water`,
+  bacini, zone umide) entro 280 m: 40 gatti su 120 negli Stati Uniti, 14 in Australia, 20 in
+  Nuova Zelanda. Il mare, ricostruito dalla linea di costa di OSM (terra a sinistra, acqua a
+  destra): 8, 3 e 17 gatti. Posizioni in acqua: vere 0,05%, ruotate 0,40%; in Nuova Zelanda
+  fino al 36% delle ruotate di un gatto di costa, mai una vera (un gatto degli Stati Uniti ha il
+  3,6% delle vere «in mare»: spiaggia, pontile, o costa ricostruita male, da guardare). Con
+  l'acqua come muro (stessa identità) D salirebbe di circa 0,029 negli Stati Uniti, 0,025 in
+  Nuova Zelanda, 0,001 in Australia. **L7 non vedeva l'acqua, e il suo D è per difetto**:
+  calcolato dopo aver visto i dati, non cambia il verdetto di L7.
+Risultato L11:
+- impronta senza luogo identica ✓;
+- luogo di prova ✗: nel quadrato ci sono 101 celle d'acqua (0,03% della griglia), tutte negli
+  angoli, a 710-720 m da casa. La base era stata letta in un cerchio di 600 m (`lessons.md` #54).
+  Cambiano i passi rilanciati laggiù, e con loro il flusso dei numeri casuali: ogni numero si
+  muove dentro il rumore del seme (regione al 50% 0,590 → 0,587 ha; liberi 23,4 / 56,7 / 179,9
+  m; C1 0,471 / 0,731). Nel caso privato il primo posto consigliato (la casa, p 0,72) resta
+  identico; degli altri quattro (p 0,01-0,03) due restano, due si spostano di 13 e 39 m. Lo
+  stesso però fa il seme da solo: con i semi 1 e 2 uno dei quattro non ha un posto entro 85-121
+  m, un altro entro 45-49 m. **Oltre il primo, i posti consigliati sono in parte rumore del
+  Monte Carlo** (`STATO.md`). I `varianti-24h*.json` ora sono quelli
+  dopo L11 (`water_cells` 101);
+- test ✓: `test_water_is_no_place_for_a_cat` (un fiume di 16 m con un ponte: nessuna cella
+  d'acqua dove stare, la riva di là solo dal ponte, senza ponte irraggiungibile, a 24 ore nessun
+  gatto in acqua). Con la correzione spenta il test cade (provato).
+Verdetto: il motore non mette più gatti in acqua. Sul luogo di prova non cambia niente di
+misurabile; conta nei casi vicino al mare, ai laghi e ai fiumi larghi. I fiumi sotto i 10 m di
+WorldCover restano invisibili: da OSM (`waterway=river`, `natural=water`) si aggiungono quando
+serve.
+
+### 2026-09-26 — L12 — la mappa come previsione, non come test (scritto prima di calcolare)
+Perché: il D di L5-L7 è la differenza fra il punteggio delle posizioni vere e quello delle
+ruotate: dice se la mappa mette le vere più in alto delle ruotate (un'associazione), non se è
+una buona previsione. Per una mappa costante su classi (dentro gli edifici, fasce di distanza,
+tipi) D = Σ_c (u_c − a_c) log w_c, con u la quota delle vere e a quella delle ruotate: è lineare
+in log w e cresce senza fine spingendo a zero una classe poco usata. Il metro del prodotto è il
+punteggio proprio delle sole posizioni vere contro la mappa radiale, S = Σ_c u_c log(w_c / Σ_d
+a_d w_d). Per la disuguaglianza di Gibbs S ≤ KL(u‖a), con l'uguaglianza solo per w_c ∝ u_c / a_c:
+**la mappa migliore su quelle classi è il rapporto di selezione**, e nessuna mappa su quelle
+classi guadagna più di KL(u‖a). (In ecologia è la massima verosimiglianza di una funzione di
+selezione a categorie: nuovo per noi è usarlo come metro della mappa.)
+Previsioni (391 gatti di L7, pavimento all'1% come in L5; S in nat per posizione, media sui gatti):
+- `walls` a σ 0: S ≈ −0,49 (il conto: 0,138 × (−4,62) + 0,862 × 0,17): come previsione la mappa
+  a muri è **peggio della mappa radiale**, pur con D = +0,074; a σ 5 fra −0,10 e −0,02, a σ 10
+  fra −0,02 e +0,01, a σ 20 entro ±0,005;
+- la mappa del motore (`engine`, senza pavimento: zero dentro gli edifici): posizioni vere su
+  celle a peso zero circa 14%, gatti con almeno una posizione lì oltre il 90%: S = −∞;
+- limite di ogni mappa costante sulle 6 fasce di distanza dagli edifici: KL ≈ 0,003 (dalle quote
+  di `pieces.json`); sui 6 tipi di posto sotto 0,005; tarata su due paesi e provata sul terzo:
+  fra 0 e 0,003.
+Risultato (391 gatti, S media sui gatti ± errore; calcolato con `score.gain_map` sulle sole posizioni vere):
+- `walls`: σ 0 **−0,498 ± 0,018** ✓; σ 5 −0,023 ± 0,003 ✓; σ 10 −0,006 ± 0,002 ✓; σ 20 −0,002 ±
+  0,001 ✓. Per paese a σ 0: Stati Uniti −0,36, Australia −0,50, Nuova Zelanda −0,63;
+- `walls_sel` e `engine` (identiche entro 0,001): σ 0 −0,513; σ 5 −0,036 ± 0,004; **σ 10 −0,012
+  ± 0,003**; σ 20 −0,005 ± 0,002. `full` (con la raggiungibilità) ancora un poco peggio (σ 10
+  −0,016). **A ogni lisciatura la mappa del motore prevede le posizioni vere peggio della mappa
+  radiale**; la selezione di Hanmer toglie invece di aggiungere (`walls_sel` sotto `walls` a
+  ogni σ);
+- `engine` senza pavimento: posizioni vere su celle a peso zero **13,8%** ✓, gatti con almeno
+  una **97%** ✓: come previsione vale −∞;
+- limiti delle mappe a classi: 6 fasce di distanza dagli edifici KL 0,0028 ✓; 6 tipi di posto
+  0,0011 ✓. Il rapporto di selezione per fasce, tarato su due paesi e provato sul terzo (quote
+  per paese di `pieces.json`): Stati Uniti +0,0025, Australia +0,0024, Nuova Zelanda +0,0006 ✓,
+  **positivo in tutti e tre**: la prima mappa che batte la radiale fuori campione. I suoi pesi
+  (tutti i gatti): dentro 0,90 · 0-3 m 1,01 · 3-6 m 1,05 · 6-12 m 1,09 · 12-24 m 1,02 · oltre 0,90.
+Verdetto: L7 ha confermato un'associazione (le vere cadono dentro gli edifici meno delle
+ruotate), non una previsione. Come previsione delle posizioni di gatti residenti la mappa del
+motore **perde** contro quella radiale, per due pezzi: lo zero dentro gli edifici (dove cade il
+14% delle posizioni vere, errore del GPS e ripari insieme) e i pesi di Hanmer (gatti del Regno
+Unito accanto al verde), che qui non reggono. Quello che una mappa a classi può guadagnare è
+piccolo (al massimo 0,003 nat per posizione), ma c'è, e si ottiene con i rapporti di selezione
+misurati. Per un gatto smarrito il punto non è chiuso: Huang dice che si nasconde anche in
+garage, capanni e sotto i portici (25%), cioè proprio dentro le impronte a cui il motore dà zero.
+Riproducibile: `python -m proto.gps.pieces privato/dati/cattracker-conferma --households 20`
+stampa ora S accanto a D (fra graffe) e le scrive in `pieces.json` (`S_real`); gli altri 14.904
+numeri restano identici al bit. Tutte le 8 mappe, a ogni σ, hanno S sotto zero.
+
+### 2026-09-26 — L13 — dentro gli edifici per tipo, il metro con l'errore del GPS, una mappa che batta la radiale fuori campione (scritto prima di calcolare)
+Cosa: sui 391 gatti di L7 (66.526 posizioni vere fra 20 e 280 m, 345 case) le tabelle di
+`proto/gps/classes.py` (`classes.npz`): per ogni posizione la classe della sua cella fra 31 classi
+fini. Dentro: la casa del gatto; gli altri edifici per gruppo del tag `building` di OSM
+(abitazione: `house`, `detached`, `residential`, `apartments`…; garage: `garage`, `garages`,
+`carport`; capanno: `shed`, `hut`, `barn`, `greenhouse`…; `yes`; altro) e impronta sotto o sopra i
+40 m². Fuori: fascia di distanza dal primo edificio (0-3, 3-6, 6-12, 12-24, oltre 24 m) per
+superficie (strada, giardino, vegetazione, aperto). La disponibilità è la media esatta sull'anello
+da 2 m della cella (le ruotate di `pieces.py` senza Monte Carlo). I tag vengono dalla risposta di
+OSM da cui è stato costruito ogni mondo, ridipinta: la griglia degli edifici torna identica in
+tutti i 391 (controllo nel codice). Il punteggio dalle tabelle coincide con `score.gain_map` a
+pavimento 0 entro 5·10⁻⁸ (σ 0 e 10, tre gatti).
+Il metro: S = media sui gatti della media sulle loro posizioni di log(m(x) / m̄(x)), con m la mappa
+**nella posizione vera** (costante sulle classi) sfocata da una gaussiana di σ m prima del
+punteggio, e m̄ la media di m sull'anello da 2 m della cella: l'errore del GPS sta nel punteggio,
+non nella mappa. A σ 0 è il punteggio di L12. I pesi che massimizzano S (la massima
+verosimiglianza della selezione, per Gibbs il rapporto di selezione a σ 0) danno il massimo che
+una famiglia può dare in campione; il numero che conta è fuori campione.
+Letto prima di prevedere (solo disponibilità, nessuna posizione vera): dentro gli edifici Stati
+Uniti 0,101, Australia 0,168, Nuova Zelanda 0,185 (come L10). Sotto i 40 m² è l'1-4% dell'area
+dentro (0,0022 · 0,0015 · 0,0066). In Australia l'area dentro è per il 58% `house` e simili, negli
+Stati Uniti e in Nuova Zelanda per il 62-68% `yes`. Impronte di Microsoft (da immagini): 23%
+dell'area dentro negli Stati Uniti, 15% in Australia, nessuna in Nuova Zelanda (LINZ e comune di
+Wellington). Più di 8 m dentro un muro: 0,1-0,2% dell'anello; quasi tutto il dentro è entro 4 m da
+un muro.
+Previsioni, parte 1 (σ 0, rapporto vere/disponibili, media sui gatti; `classes inside`):
+- P1 (controllo): la quota delle vere dentro gli edifici è quella di `pieces.json` (`inside_real`)
+  per ogni gatto alla quarta decimale; la disponibilità dentro è `inside_rotated` entro ±0,01 per
+  gatto ed entro ±0,001 in media;
+- P2 (impronta): sotto i 40 m² (casa esclusa) il rapporto è più alto che sopra: sotto 0,9-1,4,
+  sopra 0,80-0,95;
+- P3 (tipo): lo 0,97 degli Stati Uniti non viene dal miscuglio dei tag: dentro `yes` ≥ 40 e dentro
+  abitazione ≥ 40 il rapporto degli Stati Uniti supera quello dell'Australia di almeno 0,05 in
+  tutti e due. Garage ≥ 40 sopra abitazione ≥ 40 (poche posizioni, bassa fiducia);
+- P4 (fonte): le impronte di Microsoft hanno il rapporto degli altri edifici dello stesso paese
+  entro ±0,1: la fonte non spiega lo 0,97;
+- P5 (profondità): il rapporto scende entrando, in ogni paese: entro 2 m dal muro > 2-4 > 4-8 m;
+  a 4-8 m fra 0,5 e 0,8 (la sola sfocatura con σ 5-6 m, l'errore degli i-gotU di Morris e Conner,
+  darebbe 0,3-0,5); gli Stati Uniti sopra l'Australia a ogni profondità;
+- P6 (la casa del gatto oltre i 20 m): rapporto sopra 1,5 (descrittivo, pochi gatti).
+Parte 2, in campione (S in nat per posizione, `classes fit`):
+- P7: 6 fasce (`bands6`) a σ 0: 0,0025-0,0035 (L12: KL 0,0028 dalle quote medie);
+- P8: dentro per tipo e impronta più 5 fasce (`inside11+bands5`, 16 classi) a σ 0: 0,003-0,006;
+  tutte le 31 (`fine31`): 0,005-0,012;
+- P9 (l'errore nel punteggio): per `bands6` e `inside11+bands5` il massimo di S sta a σ fra 5 e
+  15 m e supera σ 0 di 0,0005-0,003; lì il peso dentro gli edifici nella posizione vera è più
+  basso del rapporto a σ 0 (la sfocatura tolta): 0,4-0,8 invece di ~0,9;
+- P10: per paese il σ del massimo (`bands6`) è più grande negli Stati Uniti che in Australia (più
+  alberi sopra il GPS).
+Parte 3, fuori campione (tarata su due paesi, provata sul terzo; σ scelto dalla S di taratura fra
+0, 5, 10, 15, 20 m):
+- P11: `bands6` a σ 0 positiva nei tre paesi, entro ±0,001 da L12 (+0,0025 · +0,0024 · +0,0006);
+- P12: `inside11+bands5` positiva nei tre e sopra `bands6` σ 0 in almeno due; `fine31` sotto
+  `inside11+bands5` in almeno un paese (strade, giardini e vegetazione sono disegnati in modo
+  diverso dall'OSM di ogni paese).
+Regola di scelta, scritta ora: la candidata è la famiglia (con la sua regola per σ) con la S media
+più alta sui 391 gatti provati fuori campione (ognuno con i pesi tarati sugli altri due paesi),
+purché positiva in tutti e tre; entro 0,0002 vince quella con meno classi. La candidata si tara
+poi su tutti e tre i paesi e si prova sul Regno Unito di L5, con una previsione scritta prima.
+Comandi: `python -m proto.gps.classes build|inside|fit privato/dati/cattracker-conferma`.
+Risultato, parte 1 (`classes-inside.json`; rapporto vere/disponibili; Australia · Nuova Zelanda ·
+Stati Uniti):
+- P1 ✓: quota delle vere dentro identica a `inside_real` in tutti i 391 (differenza massima 0);
+  disponibilità contro `inside_rotated` in media +0,0002 ✓, al massimo 0,0104 ✗ al limite (un
+  gatto: l'anello di celle contro il cerchio delle ruotate);
+- P2 ✗: sotto i 40 m² 0,83, sopra 0,89 (per paese sotto 0,92 · 0,73 · 1,06, sopra 0,81 · 0,93 ·
+  0,94): l'impronta piccola non si distingue, ed è l'1-4% dell'area;
+- P3 ✗ a metà: dentro `yes` ≥ 40 gli Stati Uniti 0,98 contro 0,86 dell'Australia (+0,12 ✓), dentro
+  abitazione ≥ 40 0,84 contro 0,80 (+0,04, soglia 0,05 ✗). Garage ≥ 40 0,95, abitazione 0,86 ✓;
+- P4 ✗: negli Stati Uniti le impronte di Microsoft hanno **1,11** (le vere ci cadono più del caso),
+  le altre 0,89; in Australia 0,80 contro 0,82. Con quelle di Microsoft come le altre, gli Stati
+  Uniti darebbero 0,92 invece di 0,97: **un terzo della distanza dall'Australia viene da lì**, il
+  resto dai `yes` senza fonte (0,88 contro 0,82) e dalla casa;
+- P5 ✗: il rapporto **non scende entrando**. Tutti i gatti: entro 2 m dal muro 0,92, 2-4 m 0,91,
+  4-8 m 0,82, oltre 8 m 0,74; a 4-8 m per paese 0,75 · 0,88 · 0,90 (previsto 0,5-0,8; la sola
+  sfocatura con σ 5-6 m darebbe 0,3-0,5). Stati Uniti sopra l'Australia a 3 profondità su 4. Le
+  vere che cadono dentro sono sparse su tutta l'impronta, non ammucchiate ai muri;
+- P6 ✗ al limite: la casa del gatto oltre i 20 m 1,42 (1,43 · 1,24 · 1,56).
+Parte 2, in campione (`classes-fit.json`): P7 ✓ `bands6` σ 0 0,0034. P8 ✓ `inside11+bands5` σ 0
+0,0042, `fine31` 0,0056. P9 ✗ a metà: `bands6` ha il massimo a σ 5 m (0,0047, +0,0013 ✓; peso dentro
+0,67 invece di 0,91 ✓), `inside11+bands5` cresce fino al bordo (σ 20 0,0193; 30 m 0,0206) ✗, e non
+per l'errore del GPS (sotto). P10 ✓: il massimo di `bands6` per paese a 5 · 10 · 20 m (il bordo).
+Parte 3, fuori campione: P11 ✓ `bands6` σ 0 +0,0023 · +0,0005 · +0,0035 (L12 +0,0024 · +0,0006 ·
++0,0025; gli Stati Uniti a +0,0010, al limite); con la sua regola (σ 5) la Nuova Zelanda va a
+−0,0002. P12 ✓: `inside11+bands5` (σ 20 scelto in tutti e tre) +0,0127 · +0,0103 · +0,0127, sopra
+`bands6` in tutti e tre; `fine31` sotto in Australia e Nuova Zelanda. **La regola sceglie
+`inside11+bands5` a σ 20: +0,0119 ± 0,0041** sui 391 gatti provati fuori campione, positiva in
+tutti e tre i paesi.
+Smontata (esplorativo, `classes pieces`, la candidata non cambia): il guadagno è quasi tutto **la
+casa del gatto**. La casa come classe e gli altri edifici insieme (`home+bands6`) danno a σ 20
+0,0185 in campione contro 0,0193; gli edifici piccoli non aggiungono niente (`small+bands6` =
+`bands6` a ogni σ: i loro pesi 5-24 a σ 20 erano rumore di classi quasi collineari). Perché: il
+punto casa dei gatti GPS (la cella da 10 m con più righe) sta in mediana a 7,9 m dal centro
+dell'edificio di casa (90° percentile 17,6 m), e le posizioni fra 20 e 60 m pendono verso quel
+centro: coseno medio +0,20 ± 0,02 con lo scarto fra 6 e 20 m, +0,08 ± 0,05 sotto i 3 m (Spearman
+0,17, p 0,0006). La casa sfocata a 20-30 m dice che **il gatto gira attorno all'edificio di casa,
+non attorno al punto casa**: è il centro degli anelli, non il paesaggio. Con σ fino a 40 la regola
+diventa instabile (Nuova Zelanda −0,0011).
+Prova finale sul Regno Unito (scritta prima di costruirne le tabelle): la candidata
+(`inside11+bands5`, σ 20, tarata sui 391) sui gatti di L5 (`privato/dati/cattracker`, case a 20 m).
+Previsione: S fra 0 e +0,02 (fuori campione nei tre paesi +0,010-0,013); con ~46 gatti l'errore è
+~0,009 e la potenza a p < 0,05 sotto il 30%: un S positivo non significativo è il risultato
+atteso e da solo non dice nulla, un S sotto zero sarebbe contro. Secondari: `bands6` σ 0 fra
+−0,002 e +0,004; `home+bands6` σ 20 entro ±0,003 dalla candidata. Nel Regno Unito il punto casa
+viene dalle sole visibili (98% delle righe): lo scarto dal centro dell'edificio può essere diverso.
+Risultato della prova finale (`privato/dati/cattracker/classes-test.json`; 46 gatti, 37 case,
+5.918 posizioni; le tabelle del Regno Unito rifanno la griglia degli edifici identica in tutti):
+la candidata dà **S = −0,0053 ± 0,0093** ✗ (sotto zero, dentro il rumore: z −0,6); `home+bands6`
+σ 20 −0,0052 ✓ (come la candidata); `bands6` σ 0 **+0,0028 ± 0,0039** ✓. Nel Regno Unito il punto
+casa sta come altrove a 8,1 m (mediana) dal centro dell'edificio di casa, ma le posizioni fra 20 e
+60 m non pendono verso quel centro (Spearman −0,08, p 0,61; case di 94 m² in mediana contro 184,
+spesso file di villette che OSM disegna come un edificio solo).
+Verdetto: **la candidata non passa la prova finale e non va nel motore.** Il suo guadagno era la
+casa, cioè il centro degli anelli, e dipende da come i dati definiscono il punto casa (la cella più
+densa di tutte le righe) e da come OSM disegna la casa: non passa da un insieme all'altro. Quello
+che regge in tutti e quattro gli insiemi è la mappa per fasce di distanza dagli edifici a σ 0
+(`bands6`: +0,0023 · +0,0005 · +0,0035 fuori campione, +0,0028 nel Regno Unito), piccola: il
+paesaggio di OSM, per gatti residenti, dà al massimo 0,002-0,004 nat per posizione. Tipo e
+superficie degli edifici non la cambiano. Lo 0,97 degli Stati Uniti viene per un terzo dalle
+impronte di Microsoft (1,11) e per il resto dai `yes` senza fonte; non dalla profondità: le
+posizioni dentro sono sparse su tutta l'impronta. Aperti: il centro del gatto (porta, cella più
+densa o edificio) come domanda a sé, e l'errore del GPS letto dai dati (le righe nascoste dei gatti
+fermi), non dalla prova statica di Morris e Conner.
+
+### 2026-09-26 — L14 — dal residente allo smarrito: le fasce fuori, i ripari di Huang negli edifici (regola scritta prima di cambiare il motore)
+Perché: il motore pesa le ancore con la selezione di Hanmer (gatti residenti del Regno Unito
+accanto al verde) e dà zero dentro gli edifici. Sui residenti col GPS tutte e due perdono (L12):
+il paesaggio misurato dei residenti sono le fasce di distanza dagli edifici (L13, quasi radiali).
+Per uno smarrito Huang (Tabella 6 e il paragrafo dei luoghi, `riferimenti.md`) trova un quarto
+dei gatti dentro le impronte degli edifici: garage, capanni, sotto casa, case d'altri. Hanmer dice
+anche di evitare la vegetazione, dove Huang trova il 16% degli smarriti fuori.
+La regola (scritta prima di calcolarne i numeri):
+1. fuori dagli edifici il peso è quello dei residenti per fascia di distanza dal primo edificio
+   (`bands6` σ 0 tarata sui 391 gatti di L13: 0-3 m 1,023 · 3-6 1,067 · 6-12 1,112 · 12-24 1,024
+   · oltre 24 m 0,837), diviso per la sua media sulla disponibilità fuori: niente più Hanmer, né
+   per tipo di posto né per la vegetazione (quella di Huang, i cespugli, a 10 m non si vede);
+2. dentro un edificio diverso dalla casa il gatto smarrito può stare, se l'edificio tocca una
+   cella libera raggiungibile, con il peso h = (s/a) / ((1 − s)/(1 − a)) rispetto a fuori. s è la
+   quota di Huang dei trovati vivi (casa propria esclusa, è lo stato «a casa») che erano dentro
+   un'impronta: case d'altri 11%, edifici pubblici 2%, e fra i trovati fuori (83%) sotto casa,
+   garage, capanno o stalla, sotto un capanno, sotto un garage, balcone (72 risposte su 468). Sotto
+   portico, veranda o terrazza (47) resta fuori: è a ridosso del muro, la fascia 0-3 m. a è la
+   quota delle impronte diverse dalla casa nei quartieri dei gatti di Cat Tracker di Stati Uniti e
+   Australia (i paesi del sondaggio), anelli pesati con la lognormale delle ancore del gatto di
+   casa (mediana 49,5 m, dispersione 2,1, fino a 284 m), ogni paese a metà;
+3. la casa resta un muro; l'acqua resta zero (L11); tipo e superficie degli edifici non si
+   distinguono (L13: nei residenti non contano; in OSM garage e capanni sono troppo pochi per
+   stimarne la disponibilità);
+4. la selezione nel passo usa gli stessi pesi (il tempo va col peso): nascosto, il gatto si muove
+   meno; il grafo della raggiungibilità non cambia (gli edifici non si attraversano);
+5. `PlaceParams.preference`: `"lost"` (questa regola, il motore) o `"hanmer"` (fino a L13, per
+   rifare le misure vecchie). `Place.sel` resta Hanmer per tipo: lo leggono le mappe di L5-L7
+   (`score.MAPS`, `lessons.md` #53).
+I numeri della regola (calcolati dopo averla scritta, prima di toccare il motore): s = **0,268**
+(fuori, 72/468 = 0,154 dentro un'impronta); a = **0,093** (Stati Uniti 0,068, Australia 0,117;
+Nuova Zelanda 0,137, non usata); **h = 3,58** (con un paese solo: Stati Uniti 4,99, Australia
+2,76, Nuova Zelanda 2,30: è l'incertezza di h). Le fasce fuori, divise per la loro media sulla
+disponibilità fuori (1,021): 1,002 · 1,045 · 1,089 · 1,003 · 0,819. Un limite scritto ora: Huang non
+dice di chi sono la casa, il garage e il capanno dei trovati «sotto casa», «in garage»,
+«nel capanno»; se in parte sono quelli del gatto (che qui restano un muro), s e h sono troppo alti
+(metà di quelle risposte alla casa propria darebbe s 0,20 e h 2,5).
+Previsioni (luogo di prova, variante 2, 24 ore, 50.000 gatti, seme 0, `variants.py`; sul luogo di
+prova le impronte diverse dalla casa sono il 29% delle celle fra 20 e 200 m, 0,17 con il peso
+delle distanze del motore):
+- l'impronta del motore senza luogo (`sim.fingerprint`) identica al bit prima e dopo;
+- gatti sciolti entro 200 m dentro un edificio (`loose_type_share_200m`, `roof` nella variante 2):
+  da 0 a **0,55-0,85** (con le sole ancore sarebbe h·a/(h·a + 1 − a) ≈ 0,5-0,6; la selezione nel
+  passo lo alza verso h²·a/(h²·a + 1 − a) ≈ 0,8);
+- distanze dei gatti sciolti (quartili 23 · 57 · 180 m) entro ±5 m sulla mediana: la regola cambia
+  la direzione, non la distanza;
+- regione al 50% da 0,59 ha a 0,35-0,55 ha (la massa si stringe sugli edifici, più densi di gatti);
+- distanza di variazione totale fra variante 2 e variante 1 (senza luogo) fra 0,20 e 0,45 (era
+  0,33: prima la 2 toglieva gli edifici, ora li riempie);
+- quota di massa nel quadrato (`mass_in_grid`, 0,899) entro ±0,01; ricadute sulla direzione a caso
+  (`fallback_share`, 0,130) non sopra;
+- i test di `test_place3d.py` che dicono «le ancore stanno fuori dagli edifici» cambiano con la
+  regola (si riscrivono: le ancore stanno dove il gatto può stare, edifici diversi dalla casa
+  compresi); nessun altro test cambia.
+Risultato (`privato/luogo/varianti-24h-lost.json` e `-lost-seed1.json`; con `--preference hanmer`
+il luogo di prova rifà i numeri di prima al bit, `varianti-24h.json`):
+- impronta del motore senza luogo identica al bit ✓;
+- gatti sciolti entro 200 m dentro un edificio (misura nuova `loose_in_building_200m`: il conteggio
+  per tipo di `variants.py` è solo a terra) **0,484** e 0,481 con il seme 1 ✗ (previsto
+  0,55-0,85); senza luogo 0,33. Ancore dentro un edificio 0,345;
+- distanze dei gatti sciolti 30,0 · 60,3 · 176,4 m: la mediana a +3,6 m ✓, ma **il primo quartile
+  sale da 23,4 a 30,0 m**;
+- regione al 50% **1,01 ha** ✗ (prevista 0,35-0,55, era 0,59): la massa si allarga, perché vicino
+  alla porta resta meno gente; C1 0,50 / 0,75 (era 0,47 / 0,73);
+- variazione totale fra 2 e 1: 0,212 ✓; massa nel quadrato 0,900 ✓; ricadute 0,130 ✓;
+- i test: nella città sintetica fitta il primo quartile sale del 13% (28,2 m contro 24,9 senza
+  luogo), fuori dal ±10% di `test_place_keeps_the_walk_distances`. Smontato: con Hanmer 24,1;
+  `lost` senza selezione nel passo 26,2 (gatti negli edifici 0,34, quasi il caso); `lost` con
+  `hide` 1 26,3; `lost` pieno 28,2 (negli edifici 0,60, `sel_ref` 1,72).
+Verdetto: **la regola non diventa il motore.** Con le sole ancore il passo (10-25 m all'ora) porta
+i gatti fuori dalla cella dell'ancora e la preferenza per gli edifici quasi sparisce; con la
+selezione nel passo ci resta, ma la normalizzazione `sel_ref` (la media sulle ancore a caso, 1,5
+sul luogo di prova e 1,7 nella città sintetica) fa muovere il gatto fuori, cioè alla porta, 1,5-1,7
+volte più del tarato, e le distanze vicine si allungano. Il motore resta Hanmer (`preference`
+predefinita `"hanmer"`); `"lost"` è un'opzione con i suoi test, e il fallimento è un xfail
+stretto (`test_the_lost_rule_keeps_the_walk_distances`). Prossimo: il nascondersi come tempo
+passato fermo in un riparo che tenga le distanze di A5.

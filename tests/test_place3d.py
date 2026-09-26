@@ -43,7 +43,7 @@ def test_floating_point_predictor_round_trip():
     assert np.array_equal(out, a)
 
 
-def synthetic_world(tmp_path, n=200, cell=2.0, dense=False, gardens=False):
+def synthetic_world(tmp_path, n=200, cell=2.0, dense=False, gardens=False, river=False, bridge=True):
     half = n * cell / 2
     c = -half + (np.arange(n) + 0.5) * cell
     gx, gy = np.meshgrid(c, c)
@@ -58,6 +58,10 @@ def synthetic_world(tmp_path, n=200, cell=2.0, dense=False, gardens=False):
         bid[m] = k; bh[m] = h
     road = np.zeros((n, n), np.uint8); road[np.abs(gy + 80) < 3] = 4
     cover = np.full((n, n), 50, np.uint8); cover[gx > 100] = 10; cover[(gx < -100) & (gy < 0)] = 30
+    if river:  # 16 m of water from north to south, east of every building; the road crosses it on a bridge
+        cover[(gx >= 70) & (gx < 86)] = 80
+        if not bridge:
+            road[(gx >= 70) & (gx < 86)] = 0
     green = np.zeros((n, n), np.uint8)
     if gardens:  # a checkerboard of 16 m garden squares between the blocks
         green[((gx // 16 + gy // 16) % 2 == 0)] = 1
@@ -81,9 +85,9 @@ def test_anchor_keeps_the_distance(tmp_path, heights):
     err = np.abs(np.hypot(ax[ok], ay[ok]) - r[ok])
     assert np.all(err <= half + W.cell * 0.71 + 1e-9)  # the ring plus half a cell diagonal
     iy, ix, _ = W.index(ax[ok], ay[ok])
-    assert np.all(P.surface[iy, ix]) and np.all(P.weight[iy, ix] > 0)
-    if not heights:
-        assert not np.any(W.bid[iy, ix] >= 0)  # flat: never inside a building
+    assert np.all(P.ok[iy, ix]) and np.all(P.weight[iy, ix] > 0)
+    if not heights:  # flat: inside a building only where a lost cat hides (L14)
+        assert np.all(P.hide[iy, ix][W.bid[iy, ix] >= 0])
     assert not np.any(W.bid[iy, ix] == W.bid_home)
 
 
@@ -121,17 +125,18 @@ def test_place_keeps_the_walk_distances(tmp_path):
         lo1, hi1 = quantile_ci(r1, q)
         assert 0.9 * lo0 <= lo1 and hi1 <= 1.1 * hi0, (q, lo0, hi0, lo1, hi1)
     iy, ix, ok = W.index(placed.x, placed.y)
-    assert not np.any(ok & (W.bid[iy, ix] >= 0))  # nobody ends inside a building
+    assert not np.any(ok & (W.bid[iy, ix] == W.bid_home))  # nobody ends inside the home
+    assert not np.any(ok & (W.bid[iy, ix] >= 0) & ~placed.place.hide[iy, ix])  # nor in a building it cannot reach
 
 
 def test_step_selection_keeps_cats_longer_in_gardens(tmp_path):
     """The selection in the step: same seeds with and without it, more cats on garden cells
-    at 24 h (paired runs; the anchors are the same)."""
+    at 24 h (paired runs; the anchors are the same). Hanmer's weights: gardens 1.78."""
     W = synthetic_world(tmp_path, dense=True, gardens=True)
     share = {}
     for on in (False, True):
         sim = Simulation(mixture("cat_indoor"), 20_000, 5, floor=1, hod0=20,
-                         place=Place(W, 1, par=PlaceParams(step_selection=on)))
+                         place=Place(W, 1, par=PlaceParams(step_selection=on, preference="hanmer")))
         assert (sim.sel_ref is not None) == on
         sim.run(24)
         iy, ix, ok = W.index(sim.x, sim.y)
@@ -198,12 +203,13 @@ def test_redraw_keeps_cats_off_the_walls(tmp_path):
     """L2 -> L3: a step ending in a building sent to the nearest free cell piles the mass
     against the walls; drawn again, it does not. Redrawing leans the other way a little (the
     occupancy goes with the free share within a step: docs/matematica.md), 0.91 on the test
-    place, 0.76 in this dense synthetic town."""
+    place, 0.76 in this dense synthetic town. Buildings as walls: Hanmer's engine (since L14 a
+    lost cat can hide in them, and the walls are the home, the water, what it cannot reach)."""
     from scipy import ndimage
     W = synthetic_world(tmp_path, dense=True)
     share = {}
     for redraw in (0, 5):
-        P = Place(W, 1, par=PlaceParams(redraw=redraw))
+        P = Place(W, 1, par=PlaceParams(redraw=redraw, preference="hanmer"))
         sim = Simulation(mixture("cat_indoor"), 20_000, 4, floor=1, hod0=20, place=P)
         sim.run(24)
         touch = ndimage.binary_dilation(W.bid >= 0) & P.ok
@@ -212,3 +218,95 @@ def test_redraw_keeps_cats_off_the_walls(tmp_path):
         avail = P.ok & (W.d <= 150) & (W.d > 20)
         share[redraw] = float(touch[iy, ix][near].mean()) / float(touch[avail].mean())
     assert share[0] > 1.3 and 0.65 < share[5] < share[0] - 0.3, share
+
+
+@pytest.mark.parametrize("heights", [False, True])
+def test_anchor_weight_is_pref_on_standable_cells(tmp_path, heights):
+    """After L7 the anchors weigh the preference on the cells a cat can be, without reachability;
+    Hanmer's engine (up to L13) is still there, and `sel` stays Hanmer's for the GPS maps (#53)."""
+    W = synthetic_world(tmp_path)
+    P = Place(W, floor=1, heights=heights)
+    assert np.array_equal(P.weight, np.where(P.ok, P.pref, 0.0))
+    old = Place(W, floor=1, heights=heights, par=PlaceParams(reach_weight=True))
+    assert np.array_equal(old.weight, np.where(old.ok, old.pref * old.reach, 0.0))
+    han = Place(W, floor=1, heights=heights, par=PlaceParams(preference="hanmer"))
+    assert np.array_equal(han.weight, np.where(han.ok, han.sel, 0.0)) and np.array_equal(han.sel, P.sel)
+    assert np.array_equal(han.ok, han.surface & (han.reach > 0))
+
+
+def test_a_lost_cat_hides_in_the_buildings_it_can_reach(tmp_path):
+    """L14: outside, the resident bands by distance from the nearest building; inside a building
+    other than home that touches reachable ground, `hide`; the home and a building nobody can
+    reach (across a river without a bridge) stay walls; the anchors of a ring go inside the
+    hiding places as their weight says."""
+    from scipy import ndimage
+    W = synthetic_world(tmp_path, dense=True)
+    P = Place(W, floor=1, par=PlaceParams(preference="lost"))
+    bld, home = W.bid >= 0, W.bid == W.bid_home
+    ground = ndimage.binary_dilation(P.ok & ~bld, np.ones((3, 3), bool))
+    touching = np.isin(W.bid, np.unique(W.bid[ground & bld & ~home])) & ~home
+    assert np.array_equal(P.hide, touching) and P.hide.any()
+    assert np.all(P.pref[P.hide] == P.par.hide) and not P.ok[home].any()
+    sparse = tmp_path / "sparse"  # the far bands need room between the buildings
+    sparse.mkdir()
+    S = Place(synthetic_world(sparse), floor=1, par=PlaceParams(preference="lost"))
+    sb = S.w.bid >= 0
+    d = ndimage.distance_transform_edt(~sb) * S.w.cell
+    edges = (0.0, *S.par.band_edges, np.inf)
+    for lo, hi, w in zip(edges[:-1], edges[1:], S.par.bands):
+        m = S.ok & ~sb & (d > lo) & (d <= hi)
+        assert m.any() and np.all(S.pref[m] == w)
+    rng = np.random.default_rng(0)
+    r = np.full(40_000, 60.0)
+    ax, ay = P.sample_anchor(r, rng)
+    iy, ix, _ = W.index(ax, ay)
+    half = max(P.par.ring_min, P.par.ring_frac * 60.0) / 2
+    ring = (P.sd >= 60 - half) & (P.sd <= 60 + half)
+    cells = P.sidx[ring]
+    q = float(P.weight.ravel()[cells][P.hide.ravel()[cells]].sum() / P.weight.ravel()[cells].sum())
+    got = float(P.hide[iy, ix].mean())
+    assert abs(got - q) < 4 * np.sqrt(q * (1 - q) / len(r)), (got, q)
+    sub = tmp_path / "shed"
+    sub.mkdir()
+    D = synthetic_world(sub, river=True, bridge=False)
+    Z = dict(np.load(sub / "world.npz"))
+    shed = (D.gx > 110) & (D.gx < 120) & (np.abs(D.gy) < 5)  # a shed across the river, no bridge
+    Z["bid"] = np.where(shed, Z["bid"].max() + 1, Z["bid"])
+    np.savez(sub / "world.npz", **Z)
+    Q = Place(World(sub / "world.npz"), floor=1, par=PlaceParams(preference="lost"))
+    assert shed.any() and not Q.ok[shed].any() and not Q.hide[shed].any()
+
+
+@pytest.mark.xfail(strict=True, reason="docs/MISURE.md L14: with hide 3.58 in the step selection sel_ref is "
+                   "1.7, the cats outside move 1.7 times more and the lower quartile rises 13% (28.2 m "
+                   "against 24.9 in this town; 23 -> 30 m on the test place)")
+def test_the_lost_rule_keeps_the_walk_distances(tmp_path):
+    W = synthetic_world(tmp_path, dense=True)
+    kw = dict(floor=1, hod0=20)
+    plain = Simulation(mixture("cat_indoor"), 20_000, 5, **kw)
+    lost = Simulation(mixture("cat_indoor"), 20_000, 5, place=Place(W, 1, par=PlaceParams(preference="lost")), **kw)
+    plain.run(24); lost.run(24)
+    r0, r1 = np.hypot(plain.x, plain.y), np.hypot(lost.x, lost.y)
+    for q in (0.25, 0.5, 0.75):
+        lo0, hi0 = quantile_ci(r0, q)
+        lo1, hi1 = quantile_ci(r1, q)
+        assert 0.9 * lo0 <= lo1 and hi1 <= 1.1 * hi0, (q, lo0, hi0, lo1, hi1)
+
+
+def test_water_is_no_place_for_a_cat(tmp_path):
+    """L11: WorldCover water is neither a place to stand nor a way through, unless a road crosses it."""
+    W = synthetic_world(tmp_path, river=True)
+    P = Place(W, floor=1)
+    wet = (W.cover == 80) & (W.road == 0)
+    assert wet.any() and not P.ok[wet].any() and not P.weight[wet].any()
+    assert P.ok[(W.cover == 80) & (W.road > 0)].all()  # the bridge
+    east = (W.gx > 100) & (np.abs(W.gy) < 40)
+    assert P.ok[east].all()
+    assert np.all(P.D[0][east] > 1.2 * W.d[east])  # round by the bridge, 80 m south
+    dry = Place(synthetic_world(tmp_path, river=True, bridge=False), floor=1)
+    assert not dry.ok[dry.w.gx > 86].any()
+    sim = Simulation(mixture("cat_indoor"), 20_000, 5, floor=1, hod0=20, place=P)
+    sim.run(24)
+    iy, ix, ok = W.index(sim.x, sim.y)
+    loose = (sim.state == LOOSE) & ok
+    assert loose.sum() > 10_000 and not wet[iy, ix][loose].any()

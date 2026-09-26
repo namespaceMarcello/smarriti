@@ -85,7 +85,11 @@ casa, nello stesso piano di `sim/case.py`, riempita in automatico da dati aperti
 (`riferimenti.md` §B): terreno (TINITALY 10 m), edifici con l'altezza (3D-GloBFP; quelli che
 mancano da OpenStreetMap, con `building:levels` × 3 m o la mediana del posto), copertura del
 suolo (ESA WorldCover 10 m), strade, muri e giardini (OpenStreetMap). Esce dal computer solo
-un riquadro arrotondato a 0,01° (qualche km), mai l'indirizzo né il punto.
+un riquadro arrotondato a 0,01° (qualche km), mai l'indirizzo né il punto. Nella provincia di
+Napoli anche il LiDAR a 1 m (2009): terreno `dtm1`, superficie `dsm1` e altezza massima sopra
+il suolo `hmax1` per cella; il motore ancora non li legge (L8: con il terreno a 1 m il 9% dei
+tetti entro 200 m è a portata di salto, ma la raggiungibilità sui gatti veri non porta
+segnale, L6).
 
 **I tipi di posto** (per cella da 2 m), sulle tre classi di Hanmer 2017 (§A): **naturale**
 = `veg` (alberi, arbusti, prato, coltivi: WorldCover 10-40; bosco, prato, orti di OSM);
@@ -106,15 +110,25 @@ a livello del terreno da un lato e a 6 m dall'altro.
 
 **Raggiungibilità**: il costo di cammino più corto (Dijkstra, 8 vicini) dalle uscite a ogni
 cella, fra celle dove il gatto può stare: gli edifici sono muri (variante 2) o tetti da
-raggiungere a salti (variante 3); una cella di strada costa `c_road(classe)` volte la sua
+raggiungere a salti (variante 3); l'acqua (WorldCover classe 80) non è un posto e fa da muro,
+tranne dove c'è una strada sopra, cioè un ponte (L11: prima era `open`, con la selezione più
+alta); una cella di strada costa `c_road(classe)` volte la sua
 lunghezza (il gatto evita le strade grandi); in salita ogni metro di dislivello costa
 `k_up` metri in più. `reach(c) = min(1, d(c) / D(c))`, con `d` la distanza in linea d'aria
 da casa e `D` il costo: 1 se il posto si raggiunge diritto, meno se c'è da girare attorno,
-0 se non si raggiunge. Le due uscite si mescolano con i pesi di Huang (0,77 · 0,23).
+0 se non si raggiunge. Le due uscite si mescolano con i pesi di Huang (0,77 · 0,23). Dopo L7
+`reach` dice solo dove il gatto può stare (`reach > 0`): nelle ancore non pesa più.
 
 **L'ancora**: per ogni gatto si estrae la distanza `r` dalla lognormale di A5 (mediana 49,5 m,
 dispersione 2,1), poi una cella nell'anello `[r − Δ/2, r + Δ/2]` (Δ = max(2 m, 0,05 r)) con
-peso `sel(tipo) × reach(c)`. Se l'anello è tutto a peso zero, o esce dalla griglia, la
+peso `sel(tipo)` sulle celle dove il gatto può stare (L7: sui gatti veri la raggiungibilità è
+neutra; L9: sul luogo di prova toglierla cambia ogni numero meno dell'1%; la regola di prima
+resta con `reach_weight`). **Come previsione, sui gatti residenti col GPS, questa mappa perde contro
+quella radiale** (L12: σ 10 −0,012 nat per posizione; lo zero dentro gli edifici e i pesi di Hanmer
+sono i due pezzi che perdono). La mappa dei residenti misurata è per fasce di distanza dagli
+edifici (L13: dentro 0,91 · 0-3 m 1,02 · 3-6 1,07 · 6-12 1,11 · 12-24 1,02 · oltre 0,84; +0,002-0,004
+nat per posizione fuori campione e nel Regno Unito); tipo e superficie degli edifici non la
+cambiano. La regola è da rifare con il passo «residente contro smarrito». Se l'anello è tutto a peso zero, o esce dalla griglia, la
 direzione resta a caso (la regola di oggi). La distribuzione delle distanze resta quella di
 A5 per costruzione: cambia solo la direzione.
 
@@ -146,7 +160,10 @@ la media di `sel` sulle ancore estratte con la direzione a caso, prima che il lu
 tiene la media di `p_move`, quindi le distanze. Prima del primo passo niente selezione: la
 porta è il posto da cui il gatto fugge, non uno che ha scelto (senza questa regola la
 mediana a 24 ore scende del 7,6%: `lessons.md` #38). Senza la selezione nel passo le ancore
-scelgono e il passo diluisce (L1b).
+scelgono e il passo diluisce (L1b). `sel_ref` tiene la media di `p_move` sulle ancore a caso, non
+vicino alla porta: con un contrasto forte (L14, `hide` 3,58, `sel_ref` 1,5-1,7) il gatto fuori si
+muove 1,5-1,7 volte di più e il primo quartile delle distanze sale del 13-28%. Per questo la regola
+del gatto smarrito (`preference="lost"`) non è ancora quella del motore.
 
 **La mappa fine** (`make_place_grid` in `sim/outputs.py`; la usa `python -m sim` quando il
 caso ha un luogo): la densità a nucleo adattiva di oggi su celle da 4 m sul quadrato del
@@ -189,6 +206,7 @@ con i gatti.
 | `k_up` (metri in più per metro salito) | 5 | stima: nessuno studio su salita e discesa |
 | distanza di `edge` da un edificio | 3 m | stima |
 | selezione nel passo | `p_move × sel_ref / sel(tipo)`, dal primo passo in poi | Hanmer 2017 (il tempo va con la selezione); `sel_ref` dalle ancore a caso (tiene le distanze) |
+| `preference` | `hanmer` (il motore: `sel` per tipo, edifici come muri); `lost` (opzione, L14) | `lost`: fuori le fasce dei residenti per distanza dal primo edificio (0-3 · 3-6 · 6-12 · 12-24 · oltre 24 m: 1,002 · 1,045 · 1,089 · 1,003 · 0,819, L13 diviso per la media fuori); dentro gli edifici diversi da casa che toccano terreno raggiungibile `hide` 3,58 = (s/a)/((1 − s)/(1 − a)), s 0,268 dei trovati di Huang dentro un'impronta, a 0,093 nei quartieri di Cat Tracker di Stati Uniti e Australia. Non il predefinito: cambia le distanze (L14) |
 | `redraw` (rilanci di un passo che finisce dentro un edificio) | 5, poi la cella libera più vicina | scelta su L2-L3: con 0 la massa a ridosso dei muri raddoppia |
 
 ### Transizioni di stato (ogni ora, solo LOOSE)
@@ -334,8 +352,9 @@ errori standard dentro 0,45-0,58 e 0,84-0,95.
 - Luogo in 3D: la selezione dei posti viene da gatti residenti (Hanmer 2017), non smarriti:
   nessuno studio GPS su gatti smarriti è stato trovato. Nessuno studio per attraversare le
   strade, il salto in su, la salita e la discesa: stime dichiarate nella tabella.
-- Luogo in 3D: non dimostrato sui gatti veri (L5: effetto 2%, p = 0,030 su 45 gatti; ne
-  servono circa 165). Quale pezzo porta il segnale non si sa ancora.
+- Luogo in 3D: sui gatti veri il paesaggio di OSM porta un'associazione (L7: le vere cadono
+  dentro le impronte il 10% meno del caso) ma quasi nessuna previsione: al massimo 0,002-0,004 nat
+  per posizione (L12, L13), e la mappa del motore oggi perde contro la radiale.
 - Luogo in 3D: il rilancio del passo mette un po' meno gatti dove è fitto (0,91 della
   disponibilità a ridosso dei muri sul luogo di prova, L3); il «naturale» di Hanmer (grandi aree verdi) non è il
   «sotto la vegetazione» di Huang (cespugli nei giardini), che a 10 m non si vede; i
@@ -372,17 +391,19 @@ tests/             # pytest -q: about 30 s
   test_targets.py    # phase A: the whole 4-SE interval within +-20% of each target
   test_hypotheses.py # phases B and C1; known failures are strict xfails
   test_place3d.py    # the place in 3D on a synthetic place (no private data)
-  test_gps_score.py  # the rotation test finds a place cats follow, and nothing in random directions
+  test_gps_score.py  # the rotation test finds a place cats follow, nothing in random directions; no cat skipped
 cases/
   esempio-gatto.json, esempio-cane.json
 proto/luogo3d/     # builds the world of a place (docs: "Il luogo in 3D")
-  fetch.py         # open data for one place: OSM, 3D-GloBFP, TINITALY, WorldCover, Copernicus
+  fetch.py         # open data for one place: OSM, 3D-GloBFP, TINITALY, WorldCover, Copernicus, LiDAR (Napoli)
   world.py         # layers on a 2 m grid centred on home -> world.npz
   variants.py      # the three maps side by side and the checks (L1, L1b, L2)
+  metre.py         # what the LiDAR at 1 m adds: terrain, heights, roofs in reach (L8)
   utm.py, cogread.py  # pure-Python UTM and GeoTIFF windows (lessons.md #31)
-proto/gps/         # the place against real cats: GPS of pet cats (Cat Tracker), L5
-  build_cats.py    # download, home point, world.npz per cat from OpenStreetMap
-  score.py         # log score of the place map vs the same map rotated; permutation test
+proto/gps/         # the place against real cats: GPS of pet cats (Cat Tracker), L5-L7
+  build_cats.py    # download (uk, us, au, nz), home point, world.npz per cat from OpenStreetMap
+  score.py         # log score of a place map vs the same map rotated; permutation test
+  pieces.py        # the score with one piece of the map at a time, paired (L6, exploratory)
 ```
 
 Formato del caso (`cases/*.json`):

@@ -1,20 +1,27 @@
-"""Per-cat GPS validation inputs from the Movebank Cat Tracker dataset (Kays et al. 2020, CC0).
+"""Per-cat GPS validation inputs from the Movebank Cat Tracker datasets (Kays et al. 2020, CC0).
 
-    python -m proto.gps.build_cats [max_cats]
+    python -m proto.gps.build_cats [max_cats] [--datasets uk] [--out privato/dati/cattracker]
+    python -m proto.gps.build_cats 0 --datasets us,au,nz --out privato/dati/cattracker-conferma
 
-Downloads the UK Cat Tracker dataset (handle 10255/move.882, fallback US 10255/move.885)
+Downloads the Cat Tracker datasets (uk 10255/move.882, us move.885, au move.876, nz move.879)
 from the Movebank Data Repository (DSpace 7 REST API), keeps cats with >=100 fixes (up to
-max_cats, default 40, ordered by fix count), builds one world.npz + fixes.csv per cat from
-OSM (Overpass), and privato/dati/cattracker/index.csv. Raw data: privato/dati/cattracker/
-(gitignored).
+max_cats per dataset, ordered by fix count; 0 = all), builds one world.npz + fixes.csv per
+cat from OSM (Overpass), and <out>/index.csv. Cats outside the UK get the country as a prefix
+(US-<id>): the same name can be a cat in two countries. Everything under privato/ (gitignored).
+Resumes: the CSVs and the OSM answers are cached, a run again retries only what failed.
 """
 from __future__ import annotations
 
+import argparse
 import csv
 import json
 import math
+import queue
+import random
+import re
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -29,15 +36,14 @@ from proto.luogo3d.world import GARDEN, NATURAL, ROAD_CLASS, Grid  # noqa: E402
 
 API = "https://datarepository.movebank.org/server/api"
 OVERPASS = "https://overpass-api.de/api/interpreter"
+OVERPASS_2 = "https://maps.mail.ru/osm/tools/overpass/api/interpreter"  # the same OSM, a second queue (L7)
 UA = {"User-Agent": "smarriti-research/0.1 (open-source lost-pet simulator, contact: marcello.costagliola1@gmail.com)"}
-DATA = ROOT / "privato" / "dati" / "cattracker"
-CATS_DIR = DATA / "cats"
-OSM_CACHE = DATA / "osm_cache"
+DATASETS = {"uk": "10255/move.882", "us": "10255/move.885", "au": "10255/move.876", "nz": "10255/move.879"}
+DATA = ROOT / "privato" / "dati" / "cattracker"  # set by --out
 CELL = 2.0
 HALF = 300.0  # world grid half-size, m (n = 300)
 OSM_HALF = 320.0  # Overpass query box half-size, m
 MIN_FIXES = 100
-MAX_CATS = int(sys.argv[1]) if len(sys.argv) > 1 else 40
 
 COVER_TREE = {("natural", "wood"), ("landuse", "forest")}
 COVER_SHRUB = {("natural", "scrub")}
@@ -71,6 +77,7 @@ def resolve_item(handle: str) -> dict:
 
 
 def download_dataset(handle: str) -> dict:
+    """The CSVs of one dataset in DATA (kept: a second run does not download again)."""
     DATA.mkdir(parents=True, exist_ok=True)
     item = resolve_item(handle)
     uuid = item["uuid"]
@@ -98,7 +105,10 @@ def download_dataset(handle: str) -> dict:
 
 # ---------------------------------------------------------------- CSV parsing
 def load_fixes(loc_path: Path):
-    cats, n_total, n_kept = {}, 0, 0
+    """The fixes the authors kept (visible, not outliers) per cat, and every row with a position.
+    In the US, AU and NZ files ~90% of the rows are hidden: runs of a cat at rest, mostly at home
+    (docs/MISURE.md, L7); they are no positions to score but they mark the home."""
+    cats, rows_all, n_total, n_kept = {}, {}, 0, 0
     with open(loc_path, newline="", encoding="utf-8-sig") as f:
         r = csv.DictReader(f)
         cols = r.fieldnames or []
@@ -106,10 +116,6 @@ def load_fixes(loc_path: Path):
         err_cols = [c for c in cols if any(k in c.lower() for k in ("error", "hdop", "accuracy", "dop", "satellite"))]
         for row in r:
             n_total += 1
-            if row.get("visible", "true").strip().lower() == "false":
-                continue
-            if row.get("manually-marked-outlier", "false").strip().lower() == "true":
-                continue
             cid = row.get(id_col) or row.get("tag-local-identifier")
             if not cid:
                 continue
@@ -117,10 +123,16 @@ def load_fixes(loc_path: Path):
                 lat, lon = float(row["location-lat"]), float(row["location-long"])
             except (KeyError, ValueError, TypeError):
                 continue
-            cats.setdefault(cid, []).append((row.get("timestamp", ""), lat, lon))
+            fix = (row.get("timestamp", ""), lat, lon)
+            rows_all.setdefault(cid, []).append(fix)
+            if row.get("visible", "true").strip().lower() == "false":
+                continue
+            if row.get("manually-marked-outlier", "false").strip().lower() == "true":
+                continue
+            cats.setdefault(cid, []).append(fix)
             n_kept += 1
     print(f"  fixes kept {n_kept}/{n_total}, {len(cats)} individuals, id_col={id_col}, error-like cols={err_cols}")
-    return cats, id_col, err_cols
+    return cats, rows_all, err_cols
 
 
 def load_reference(ref_path: Path | None):
@@ -156,33 +168,58 @@ def home_from_fixes(fixes):
 
 
 # ---------------------------------------------------------------- OSM (Overpass, cached)
-def fetch_osm_cached(lat, lon, cache_key):
-    OSM_CACHE.mkdir(parents=True, exist_ok=True)
-    path = OSM_CACHE / f"{safe_name(cache_key)}.json"
+def wait_for_slot(server: str = OVERPASS):
+    """overpass-api.de/api/status says when a slot of this address frees up (4 slots, each held
+    ~30 s after a query of ours): wait for it instead of drawing a 429."""
+    try:
+        s = get(server.replace("interpreter", "status"), timeout=15).decode("utf-8", "replace")
+    except Exception:
+        return
+    if "available now" in s:
+        return
+    waits = [int(m) for m in re.findall(r"in (\d+) seconds", s)]
+    if waits:
+        time.sleep(min(waits) + 1 + random.random())
+
+
+def fetch_osm_cached(lat, lon, cache_key, server: str = OVERPASS):
+    """The OSM answer and whether it came from the network (the caller then waits)."""
+    cache = DATA / "osm_cache"
+    cache.mkdir(parents=True, exist_ok=True)
+    path = cache / f"{safe_name(cache_key)}.json"
     if path.exists():
-        return json.loads(path.read_text(encoding="utf-8"))
+        return json.loads(path.read_text(encoding="utf-8")), False
     dlat = OSM_HALF / 110574.0
     dlon = OSM_HALF / (111320.0 * math.cos(math.radians(lat)))
     bb = f"{lat - dlat},{lon - dlon},{lat + dlat},{lon + dlon}"
-    q = (f"[out:json][timeout:20];(way[building]({bb});relation[building]({bb});"
+    q = (f"[out:json][timeout:60];(way[building]({bb});relation[building]({bb});"
          f"way[highway]({bb});way[barrier]({bb});way[railway]({bb});"
          f"way[landuse]({bb});way[leisure]({bb});way[natural]({bb}););out geom tags;")
     body = urllib.parse.urlencode({"data": q}).encode()
     last = None
-    for attempt in range(4):  # overpass-api.de 504s under load but recovers within seconds; the
-        try:                  # other public mirrors are unreachable from this network (always time out)
-            data = get(OVERPASS, body, timeout=15)
+    for attempt in range(8):  # both servers 504 under load and recover within seconds
+        try:
+            if server == OVERPASS:  # the second server has no rate limit and a status page that takes 12 s
+                wait_for_slot(server)
+            data = get(server, body, timeout=90)
+            j = json.loads(data)  # a busy server can answer 200 with a remark: no elements, or only some
+            if "remark" in j:
+                raise RuntimeError(f"overpass remark: {j['remark'][:80]}")
             path.write_bytes(data)
-            return json.loads(data)
+            return j, True
         except Exception as ex:
             last = ex
             print("  overpass attempt", attempt, "->", ex, flush=True)
-            time.sleep(3)
+            too_many = isinstance(ex, urllib.error.HTTPError) and ex.code == 429
+            # 429: another request of ours took the slot, wait_for_slot says when the next frees up
+            time.sleep(3 + 4 * random.random() if too_many else 10 * (attempt + 1))
     raise last
 
 
 # ---------------------------------------------------------------- world build
-def build_world(lat0, lon0, osm):
+def build_world(lat0, lon0, osm, buildings: list | None = None):
+    """The world layers, the grid and the number of buildings painted. `buildings`, if given,
+    receives (tags, xy outline in m) of every painted building, in bid order (proto/gps/classes.py)."""
     g = Grid(lat0, lon0, cell=CELL, half=HALF)
     n = g.n
     bh = np.zeros((n, n), np.float32)
@@ -205,6 +242,8 @@ def build_world(lat0, lon0, osm):
         if "building" in tags and el["type"] == "way":
             if g.fill_polygon(bid, [xy], nb):
                 nb += 1
+                if buildings is not None:
+                    buildings.append((tags, xy))
             continue
         if "highway" in tags and tags["highway"] in ROAD_CLASS:
             cls, width = ROAD_CLASS[tags["highway"]]
@@ -248,28 +287,80 @@ def find_bid_home(bid, g):
 
 
 # ---------------------------------------------------------------- main
-def main():
-    t0 = time.time()
-    dataset = "UK 10255/move.882"
-    try:
-        print("downloading UK dataset (10255/move.882)...")
-        files = download_dataset("10255/move.882")
-    except Exception as ex:
-        print("UK dataset failed:", ex, "-> falling back to US 10255/move.885")
-        dataset = "US 10255/move.885"
-        files = download_dataset("10255/move.885")
+def select_cats(code: str, max_cats: int, home_rows: str):
+    """(key, fixes, home_lat, home_lon, home_source) for the cats of one dataset with >= MIN_FIXES.
+    The home is the densest 10 m cell of the kept fixes (home_rows="visible", L5) or of every row."""
+    print(f"downloading {code} ({DATASETS[code]})...")
+    files = download_dataset(DATASETS[code])
     if "locations" not in files:
         raise RuntimeError(f"no locations CSV found in {files}")
-    print(f"[{time.time() - t0:.0f}s] downloaded, parsing CSV...")
-
-    cats, id_col, err_cols = load_fixes(files["locations"])
+    cats, rows_all, err_cols = load_fixes(files["locations"])
     ref_home = load_reference(files.get("reference"))
+    counts = sorted(((cid, len(fx)) for cid, fx in cats.items() if len(fx) >= MIN_FIXES), key=lambda t: -t[1])
+    if max_cats > 0:
+        counts = counts[:max_cats]
+    print(f"  {len(counts)} cats selected (>= {MIN_FIXES} fixes)")
+    out = []
+    for cid, _ in counts:
+        fixes = cats[cid]
+        if cid in ref_home:
+            lat, lon, src = *ref_home[cid], "reference"
+        else:
+            lat, lon, src = *home_from_fixes(fixes if home_rows == "visible" else rows_all[cid]), \
+                "cell" if home_rows == "visible" else "cell-all"
+        out.append((cid if code == "uk" else f"{code.upper()}-{cid}", fixes, lat, lon, src))
+    return out
 
-    counts = sorted(((cid, len(fx)) for cid, fx in cats.items() if len(fx) >= MIN_FIXES),
-                     key=lambda t: -t[1])[:MAX_CATS]
-    print(f"[{time.time() - t0:.0f}s] {len(counts)} cats selected (>= {MIN_FIXES} fixes), dataset={dataset}")
 
-    CATS_DIR.mkdir(parents=True, exist_ok=True)
+def main():
+    global DATA
+    ap = argparse.ArgumentParser()
+    ap.add_argument("max_cats", nargs="?", type=int, default=40, help="per dataset, by fix count; 0 = all")
+    ap.add_argument("--datasets", default="uk", help="comma-separated: uk, us, au, nz")
+    ap.add_argument("--out", default=str(DATA))
+    ap.add_argument("--home-rows", choices=("visible", "all"), default="visible",
+                    help="rows for the home cell: the kept fixes (L5) or every row, the hidden ones included")
+    ap.add_argument("--workers", type=int, default=1, help="Overpass requests at a time (the address has 4 slots)")
+    a = ap.parse_args()
+    DATA = Path(a.out) if Path(a.out).is_absolute() else ROOT / a.out
+    if sys.platform == "win32":  # hours of Overpass: no standby while this runs (a power request, no setting changed)
+        import ctypes
+        ctypes.windll.kernel32.SetThreadExecutionState(0x80000000 | 0x00000001)  # ES_CONTINUOUS | ES_SYSTEM_REQUIRED
+    t0 = time.time()
+    todo = []
+    for code in a.datasets.split(","):
+        todo += [(f"{code.upper()} {DATASETS[code]}", *c) for c in select_cats(code, a.max_cats, a.home_rows)]
+    print(f"[{time.time() - t0:.0f}s] {len(todo)} cats to build")
+    missing = [(cid, lat, lon) for _, cid, _, lat, lon, _ in todo
+               if not (DATA / "osm_cache" / f"{safe_name(cid)}.json").exists()]
+    if missing and a.workers > 1:  # the OSM answers first, a few at a time; the build then reads the cache
+        todo_q, done, t_fetch = queue.Queue(), [0], time.time()
+        for c in missing:
+            todo_q.put(c)
+
+        def worker(server):  # each worker keeps to one server: the slots are counted per server
+            while True:
+                try:
+                    c = todo_q.get_nowait()
+                except queue.Empty:
+                    return
+                try:
+                    fetch_osm_cached(c[1], c[2], c[0], server)
+                except Exception as ex:
+                    print("  !! prefetch", c[0], ex, flush=True)
+                done[0] += 1
+                if done[0] % 20 == 0:  # how long is left, in the log
+                    rate = (time.time() - t_fetch) / done[0]
+                    print(f"[{time.time() - t0:.0f}s] fetched {done[0]}/{len(missing)}, {rate:.0f} s each, "
+                          f"~{rate * (len(missing) - done[0]) / 60:.0f} min left", flush=True)
+
+        servers = [OVERPASS if i < 2 else OVERPASS_2 for i in range(a.workers)]  # overpass-api.de: 2 slots
+        print(f"[{time.time() - t0:.0f}s] fetching OSM for {len(missing)} cats: {servers}", flush=True)
+        with ThreadPoolExecutor(a.workers) as pool:
+            list(pool.map(worker, servers))
+
+    cats_dir = DATA / "cats"
+    cats_dir.mkdir(parents=True, exist_ok=True)
     index_path = DATA / "index.csv"
     with open(index_path, "w", newline="", encoding="utf-8") as idxf:
         w = csv.writer(idxf)
@@ -278,16 +369,9 @@ def main():
         idxf.flush()
 
         built = skipped = 0
-        for cat_id, n_fixes in counts:
-            fixes = cats[cat_id]
-            if cat_id in ref_home:
-                home_lat, home_lon = ref_home[cat_id]
-                home_source = "reference"
-            else:
-                home_lat, home_lon = home_from_fixes(fixes)
-                home_source = "cell"
-
-            cat_dir = CATS_DIR / safe_name(cat_id)
+        for dataset, cat_id, fixes, home_lat, home_lon, home_source in todo:
+            n_fixes = len(fixes)
+            cat_dir = cats_dir / safe_name(cat_id)
             cat_dir.mkdir(parents=True, exist_ok=True)
 
             kx = 111320.0 * math.cos(math.radians(home_lat))
@@ -302,8 +386,9 @@ def main():
             reason = ""
             n_buildings = 0
             try:
-                osm = fetch_osm_cached(home_lat, home_lon, cat_id)
-                time.sleep(1.0)
+                osm, fetched = fetch_osm_cached(home_lat, home_lon, cat_id)
+                if fetched:
+                    time.sleep(2.0)
                 layers, g, nb = build_world(home_lat, home_lon, osm)
                 n_buildings = nb
                 bid_home, bid_src = find_bid_home(layers["bid"], g)
@@ -320,6 +405,8 @@ def main():
                 reason = f"error: {ex}"
                 skipped += 1
                 print("  !!", cat_id, reason)
+            if reason:  # a world left by an earlier run with another home is not this cat's
+                (cat_dir / "world.npz").unlink(missing_ok=True)
 
             w.writerow([cat_id, dataset, n_fixes, f"{home_lat:.6f}", f"{home_lon:.6f}", home_source,
                         n_buildings, reason])

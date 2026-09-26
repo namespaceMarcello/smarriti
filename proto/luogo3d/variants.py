@@ -19,11 +19,12 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import LightSource, ListedColormap
+from scipy import ndimage
 
 from sim.categories import mixture
 from sim.engine import LOOSE, Simulation
 from sim.outputs import _smooth, kernel_sigmas, make_place_grid
-from sim.place import TYPES, Place, PlaceParams, World
+from sim.place import TYPES, WATER, Place, PlaceParams, World
 
 CELL = 4.0  # map cells, m
 VIEW = 300.0  # half-width of the picture, m
@@ -170,19 +171,23 @@ def main():
     ap.add_argument("--hours", type=int, default=24); ap.add_argument("--n", type=int, default=50_000)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--no-step-selection", action="store_true", help="the place picks the anchors only (L1b)")
+    ap.add_argument("--reach-weight", action="store_true", help="anchors weigh sel x reach (before L7)")
+    ap.add_argument("--preference", choices=("hanmer", "lost"), default=PlaceParams().preference,
+                    help="what anchors and time weigh: Hanmer by type (the engine) or L14's lost cat")
     a = ap.parse_args()
     place_cfg = json.loads(Path(a.place).read_text(encoding="utf-8"))
     data = Path(a.data)
     floor = int(place_cfg.get("floor", 1))
     t0 = time.time()
     world = World(data / "world.npz")
-    par = PlaceParams(step_selection=not a.no_step_selection)
+    par = PlaceParams(step_selection=not a.no_step_selection, reach_weight=a.reach_weight, preference=a.preference)
     places = {1: None, 2: Place(world, floor, par=par), 3: Place(world, floor, heights=True, par=par)}
     t_place = time.time() - t0
     home_mask = world.bid == world.bid_home
     base = basemap(world, places[3])
     out, maps = {"hours": a.hours, "n": a.n, "floor": floor, "t_place_s": round(t_place, 2),
-                 "step_selection": par.step_selection}, {}
+                 "step_selection": par.step_selection, "preference": par.preference,
+                 "water_cells": int(((world.cover == WATER) & (world.road == 0)).sum())}, {}
     for v, place in places.items():
         t = time.time()
         sim, (ax_, ay_) = run(world, place, floor, a.hours, a.n, a.seed)
@@ -219,6 +224,18 @@ def main():
             st["vs1_anchor"] = against_1(st["shares_anchor"], out["1"]["shares_anchor"])
             st["vs1_loose"] = against_1(st["shares_loose"], out["1"]["shares_loose"])
         st["sel_ref"] = sim.sel_ref
+        # loose positions on the ground within 200 m: place type (Huang, Table 6) and next to a wall
+        iy, ix, ok = world.index(sim.x[loose], sim.y[loose])
+        g = ok & (world.bid[iy, ix] < 0) & (r <= 200.0)
+        wg = sim.w[loose][g]
+        tl_ = places[3].type[iy[g], ix[g]]
+        st["loose_type_share_200m"] = {k: float(wg[tl_ == i].sum() / wg.sum()) for i, k in enumerate(TYPES)}
+        near = ok & (r <= 200.0)  # within 200 m, buildings included: where a lost cat hides (L14)
+        st["loose_in_building_200m"] = float(sim.w[loose][near & (world.bid[iy, ix] >= 0)].sum() / sim.w[loose][near].sum())
+        touch = ndimage.binary_dilation(world.bid >= 0, np.ones((3, 3), bool)) & (world.bid < 0)
+        avail = (world.bid < 0) & (world.d <= 200.0)
+        st["loose_next_to_wall_200m"] = float(wg[touch[iy[g], ix[g]]].sum() / wg.sum())
+        st["avail_next_to_wall_200m"] = float(touch[avail].mean())
         if v == 3:
             st["z_floor"] = places[3].z_floor
             st["window_exit_cells"] = int(places[3].exits[1].sum())
@@ -226,7 +243,8 @@ def main():
         maps[v] = (mass, total)
         print(v, json.dumps(st))
     h = a.hours
-    tag = "" if par.step_selection else "-ancore"
+    tag = (("-lost" if par.preference == "lost" else "") + ("" if par.step_selection else "-ancore")
+           + ("-reach" if a.reach_weight else "") + (f"-seed{a.seed}" if a.seed else ""))
     fig, axs = plt.subplots(1, 3, figsize=(21, 7.9))
     for v, ax in zip((1, 2, 3), axs):
         draw(ax, world, base, *maps[v], TITLES[v], home_mask, out[str(v)])
