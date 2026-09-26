@@ -6,15 +6,17 @@ smarrito: migliaia di animali virtuali che partono da casa e si muovono nella zo
 sugli studi pubblicati e sui dati aperti. **Solo matematica**: dopo la perdita non riceve niente
 (né avvistamenti, né ricerche, né volantini). **Non è un'app**: un sito che si apre da un
 link. Nato il 2026-09-25. Il simulatore v0 esiste (`sim/`) e con la mappa lisciata batte
-gli anelli (fase C); i prossimi passi sono in `docs/STATO.md`.
+gli anelli (fase C); il luogo in 3D è un prototipo in `proto/luogo3d/`, fuori dal motore; i
+prossimi passi sono in `docs/STATO.md`.
 
 **Lo spirito: leggere il problema come un genoma** (Marcello). Ogni studio, ogni
 dataset aperto è un dato da sequenziare, dove gli altri lo leggono da solo.
 Misurare prima di credere; scrivere la previsione prima di misurare; inventare la prossima
 idea dai numeri. Una premessa che dà zero è una scoperta: si scrive, si chiude, avanti.
 
-Stack: simulatore in Python 3.12 (`numpy`, `scipy`, `matplotlib`, `pytest`; `osmnx` dalla
-v0.1), codice e commenti in inglese. Il sito: da decidere (`docs/STATO.md`).
+Stack: simulatore in Python 3.12 (`numpy`, `scipy`, `matplotlib`, `pytest`; `pyshp` e
+`tifffile` per il luogo in 3D), codice e commenti in inglese. Il sito: da decidere
+(`docs/STATO.md`).
 
 ---
 
@@ -75,7 +77,7 @@ v0.1), codice e commenti in inglese. Il sito: da decidere (`docs/STATO.md`).
 | cosa costruiamo, i due stati dell'animale, l'ordine di costruzione | `docs/progetto.md` |
 | numeri sugli animali smarriti (distanze, giorni, percentuali), dataset aperti, cosa manca | `docs/riferimenti.md` §A, §B, §C |
 | simulazione Monte Carlo, anelli di Koester, sopravvivenza, densità a nucleo, calibrazione, come si incastrano | `docs/matematica.md` |
-| **come funziona il simulatore**: stati, movimento, zona, categorie e parametri, taratura, uscite, fasi di verifica, struttura dei file, formato del caso | `docs/simulatore.md` |
+| **come funziona il simulatore**: stati, movimento, zona, il luogo in 3D, categorie e parametri, taratura, uscite, fasi di verifica, struttura dei file, formato del caso | `docs/simulatore.md` |
 | previsioni e misure fatte, in ordine | `docs/MISURE.md` |
 | errori e fallimenti, con la regola e il controllo che ne sono usciti | `docs/lessons.md` |
 | decisioni prese, problemi aperti, prossimi passi | `docs/STATO.md` |
@@ -93,11 +95,15 @@ v0.1), codice e commenti in inglese. Il sito: da decidere (`docs/STATO.md`).
 .venv/Scripts/python -m sim.baseline              # fase C: anelli contro simulatore, ~45 s
 .venv/Scripts/python -m sim.compare               # immagine prima / anelli / ora (out/confronto-prima-dopo.png), 2 s
 .venv/Scripts/python -m pytest -q                 # ~40 s; --runslow aggiunge i test lenti (~20 s)
+.venv/Scripts/python -m proto.luogo3d.fetch privato/luogo-prova.json privato/luogo      # dati aperti del luogo
+.venv/Scripts/python -m proto.luogo3d.world privato/luogo-prova.json privato/luogo      # griglia da 2 m, 3 s
+.venv/Scripts/python -m proto.luogo3d.variants privato/luogo-prova.json privato/luogo   # le tre mappe, 3 s
 ```
 
 Per Marcello: doppio clic su `vedi-la-mappa.bat` (fuori da git) rifà e apre le mappe.
 
-Ambiente: `py -3.12 -m venv .venv` e `pip install numpy scipy matplotlib pytest`.
+Ambiente: `py -3.12 -m venv .venv` e `pip install numpy scipy matplotlib pytest pyshp tifffile`
+(niente `rasterio` né `pyproj`: Smart App Control blocca le loro DLL, `lessons.md` #31).
 
 ---
 

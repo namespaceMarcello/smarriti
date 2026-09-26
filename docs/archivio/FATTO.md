@@ -35,3 +35,13 @@ Marcello il luogo in 3D al metro e, il 2026-09-26, niente casi raccolti da noi: 
 matematica, studi e dati aperti (`STATO.md`); fonti aperte trovate (`riferimenti.md` §B).
 Si prova: `pytest -q --runslow`, `python -m sim.calibrate cat_indoor`, `python -m sim.validate`,
 `python -m sim.baseline`.
+
+### 2026-09-26 — Il luogo in 3D, primo prototipo sul luogo di prova (fuori dal motore)
+`proto/luogo3d/`: scarica da dati aperti un luogo (OSM, 3D-GloBFP per le altezze,
+TINITALY, WorldCover, Copernicus; solo un riquadro arrotondato esce dal computer), lo mette
+su una griglia da 2 m, e simula il gatto di casa con la distanza di A5 e la direzione dal
+luogo (Huang Tabella 4 per porta e finestra, Hanmer 2017 per la selezione). Tre mappe
+affiancate in `privato/luogo/varianti-24h.png`; L1 e L1b in `MISURE.md`; studi GPS dei gatti
+in `riferimenti.md` §A; email per il LiDAR in `privato/email-lidar.md`. Si prova:
+`python -m proto.luogo3d.variants privato/luogo-prova.json privato/luogo` (3 s),
+`pytest -q tests/test_place3d.py`.

@@ -54,7 +54,8 @@ Passeggiata casuale correlata con pause e attrazione verso l'ancora:
 Ogni cella ha quattro moltiplicatori: `people` (sul rischio di essere raccolto), `traffic`
 (sul rischio di morte), `stay` (su `p_move`: sotto 1 dove l'animale trova riparo e resta),
 `mobility` (sul passo). Nel caso si dichiara la zona di casa, più toppe circolari
-facoltative («qui c'è un parco»). Da v0.1 la stessa griglia la riempie OpenStreetMap.
+facoltative («qui c'è un parco»). Il luogo vero, da dati aperti, è il prototipo del luogo in
+3D (sotto), fuori dal motore.
 
 | Zona | people | traffic | stay | mobility |
 |---|---|---|---|---|
@@ -68,6 +69,100 @@ Piano: un gatto che vive dal 2° piano in su ha l'ancora a 0,6 volte la distanza
 nasconde nel palazzo o ai suoi piedi). **Tutti i numeri di questa sezione sono stime senza
 fonte**; il riferimento è la villetta perché da lì vengono gli studi della taratura (Huang:
 Australia e USA; Kremer: Dallas, dove la distanza cambia per quartiere).
+
+#### Il luogo in 3D — progetto (2026-09-26; prototipo in `proto/luogo3d/`, fuori dal motore)
+
+**Quanto lontano lo dicono gli studi, dove lo dice il 3D.** La distanza dell'ancora resta
+quella tarata in A5; il luogo sceglie solo **in quale direzione**, fra i posti veri a quella
+distanza. Per ora solo il gatto di casa (`cat_indoor`), il caso del luogo di prova.
+
+**Il mondo** (`proto/luogo3d/fetch.py`, `world.py`): una griglia da 2 m, ±600 m attorno a
+casa, nello stesso piano di `sim/case.py`, riempita in automatico da dati aperti
+(`riferimenti.md` §B): terreno (TINITALY 10 m), edifici con l'altezza (3D-GloBFP; quelli che
+mancano da OpenStreetMap, con `building:levels` × 3 m o la mediana del posto), copertura del
+suolo (ESA WorldCover 10 m), strade, muri e giardini (OpenStreetMap). Esce dal computer solo
+un riquadro arrotondato a 0,01° (qualche km), mai l'indirizzo né il punto.
+
+**I tipi di posto** (per cella da 2 m), sulle tre classi di Hanmer 2017 (§A): **naturale**
+= `veg` (alberi, arbusti, prato, coltivi: WorldCover 10-40; bosco, prato, orti di OSM);
+**giardino** = `garden` (giardini e parchi di OSM) e `open` (il costruito lontano da edifici
+e strade: cortili e giardini privati, che a 10 m non si distinguono dal lastrico);
+**costruito** = `edge` (a meno di 3 m da un edificio: portici, scale, garage, cantine),
+`street` (carreggiata) e, con i dislivelli (variante 3), `roof` (il tetto di un edificio,
+raggiungibile a salti).
+
+**Da dove esce il gatto** (Huang 2018, Tabella 4, 368 gatti di casa con la risposta): dalla
+porta 74% (272), da finestra o balcone 16% (42 + 19), da una zanzariera rotta 6% (21),
+altro 4%. Normalizzate: **porta 0,77, finestra 0,23**. La porta è il punto dell'accesso a
+terra; la finestra è il perimetro della casa. Senza dislivelli (variante 2) il gatto scende
+da tutto il perimetro; con i dislivelli (variante 3) solo dove il salto dal piano, alto
+`piano × 3 m` sopra la porta, arriva su una superficie (terra o tetto) non più di `H_down`
+più in basso né più di `H_up` più in alto: su una casa in pendio il primo piano può stare
+a livello del terreno da un lato e a 6 m dall'altro.
+
+**Raggiungibilità**: il costo di cammino più corto (Dijkstra, 8 vicini) dalle uscite a ogni
+cella, fra celle dove il gatto può stare: gli edifici sono muri (variante 2) o tetti da
+raggiungere a salti (variante 3); una cella di strada costa `c_road(classe)` volte la sua
+lunghezza (il gatto evita le strade grandi); in salita ogni metro di dislivello costa
+`k_up` metri in più. `reach(c) = min(1, d(c) / D(c))`, con `d` la distanza in linea d'aria
+da casa e `D` il costo: 1 se il posto si raggiunge diritto, meno se c'è da girare attorno,
+0 se non si raggiunge. Le due uscite si mescolano con i pesi di Huang (0,77 · 0,23).
+
+**L'ancora**: per ogni gatto si estrae la distanza `r` dalla lognormale di A5 (mediana 49,5 m,
+dispersione 2,1), poi una cella nell'anello `[r − Δ/2, r + Δ/2]` (Δ = max(2 m, 0,05 r)) con
+peso `sel(tipo) × reach(c)`. Se l'anello è tutto a peso zero, o esce dalla griglia, la
+direzione resta a caso (la regola di oggi). La distribuzione delle distanze resta quella di
+A5 per costruzione: cambia solo la direzione.
+
+**La selezione `sel(tipo)`**: il rapporto fra uso e disponibilità di un tipo di posto, dai
+rapporti di selezione standardizzati di Manly di Hanmer 2017 (gatti accanto a grandi aree
+verdi, come il luogo di prova): giardino 0,553, costruito 0,311, naturale 0,136; riportati
+al costruito = 1: `garden` 1,78, `edge` = `street` = `roof` 1, `veg` 0,44 (Fardell 2021 va
+nello stesso verso: la vegetazione è il 20% dell'area e il 7% delle posizioni). `open` sta a
+metà fra giardino e costruito (media geometrica, 1,33): stima. Sono gatti residenti, non
+smarriti: nessuno studio GPS su gatti smarriti è stato trovato. La prova è Huang, Tabella 6
+(485 gatti trovati fuori): sotto la vegetazione 16%, in un cortile 20%, sotto portico o veranda 10%,
+sotto casa 5%, garage, capanno e sotto 10%, sotto o dentro un veicolo 3%, tombino 4%,
+aspettava fuori casa 19% (è la distanza zero, già in A). Raggruppate sui nostri tipi (senza
+«fuori casa», trappola, colonia): `veg` 0,25, `garden` 0,27, `edge` 0,38, `street` 0,10.
+
+**Il movimento attorno all'ancora**: quello di oggi; un passo che finisce dove il gatto non
+può stare (dentro un edificio nella variante 2, fuori dalle superfici raggiungibili nella 3)
+finisce sulla cella libera più vicina: un passo di un'ora è un percorso, conta dove arriva.
+(Rifiutarlo accorciava le distanze del 16%: `lessons.md` #33.) Il passo non guarda il tipo
+di posto: in 24 ore diluisce quasi tutta la selezione delle ancore (L1b in `MISURE.md`).
+
+**La mappa fine**: la densità a nucleo adattiva di oggi (`make_grid`) su celle da 4 m,
+poi azzerata dove il gatto non può stare e rinormalizzata.
+
+**Come si prova senza casi**:
+1. le distanze delle ancore restano quelle di A5 (quantili entro il 2%);
+2. le distanze dei gatti liberi a 24 ore e a 7 giorni restano entro il ±10% di quelle
+   della variante 1 (A e B1 reggono; B2 non cambia: i rischi non dipendono dal luogo);
+3. C1: la mappa fine è calibrata (50% e 75% delle verità di una seconda corsa
+   indipendente nelle regioni al 50% e al 75%; la griglia di ±600 m tiene l'88% della
+   massa a 24 ore, il 90% non ci sta);
+4. le quote per tipo di posto delle ancore tornano con Huang, Tabella 6, entro un fattore 2
+   per tipo (la disponibilità del luogo di prova non è quella delle villette di Huang);
+5. i rapporti di selezione di Manly sulle tre classi di Hanmer tornano con Hanmer (0,553 ·
+   0,311 · 0,136), letti **contro la variante 1** alla stessa distanza (un disco attorno a
+   casa non è la disponibilità giusta: `lessons.md` #36).
+
+Esito del primo prototipo (L1, L1b in `MISURE.md`): regge 1-3 (distanze uguali entro l'1%,
+C1 0,48 / 0,74); la regione al 50% scende da 1,04 a 0,72 ha; il giardino torna con Hanmer,
+il naturale no; la variante 3 differisce dalla 2 del 5% (nessun tetto a portata di salto
+con i dati aperti di oggi: `lessons.md` #35). Tutto in 3 s sul luogo di prova.
+
+| Parametro | Valore | Fonte |
+|---|---|---|
+| porta · finestra | 0,77 · 0,23 | Huang 2018, Tabella 4 |
+| altezza di un piano | 3 m | stima (Whitney & Mehlhaff 1987 usano 3,66 m a New York) |
+| `H_down` (salto in giù volontario) | 4 m | stima: la finestra del primo piano resta una via (Huang, Tabella 4: 16% da finestre e balconi); nessuno studio sul salto volontario, le cadute da 2 a 32 piani sono incidenti (Whitney & Mehlhaff: 90% sopravvive) |
+| `H_up` (salto in su) | 1,5 m | stima: nessuno studio trovato |
+| `sel`: `garden` · `open` · `edge` · `street` · `roof` · `veg` | 1,78 · 1,33 · 1 · 1 · 1 · 0,44 | Hanmer 2017; `open` stima |
+| `c_road`: pedonale · servizio · residenziale · terziaria e oltre | 1 · 2 · 3 · 10 | stima: nessuno studio su attraversamento e larghezza |
+| `k_up` (metri in più per metro salito) | 5 | stima: nessuno studio su salita e discesa |
+| distanza di `edge` da un edificio | 3 m | stima |
 
 ### Transizioni di stato (ogni ora, solo LOOSE)
 
@@ -209,11 +304,18 @@ errori standard dentro 0,45-0,58 e 0,84-0,95.
 - In una zona uniforme la mappa è radiale: batte gli anelli in distanza (C2, in tutte le
   categorie sulla media geometrica), non in direzione. Nei casi estremi (verità fuori da
   tutte e due le mappe) è pari.
+- Luogo in 3D: la selezione dei posti viene da gatti residenti (Hanmer 2017), non smarriti:
+  nessuno studio GPS su gatti smarriti è stato trovato. Nessuno studio per attraversare le
+  strade, il salto in su, la salita e la discesa: stime dichiarate nella tabella.
+- Luogo in 3D: il passo attorno all'ancora non guarda il tipo di posto e in 24 ore diluisce
+  la selezione (L1b); i giardini privati a 10 m non si vedono; con il terreno a 10 m nessun
+  tetto è a portata di salto (`lessons.md` #35).
 
 ## Stack e struttura
 
-Python 3.12, `numpy`, `scipy`, `matplotlib`, `pytest`; ambiente in `.venv/`. Da v0.1:
-`osmnx`, `shapely`, `geopandas`. Codice, identificatori e commenti in **inglese**.
+Python 3.12, `numpy`, `scipy`, `matplotlib`, `pytest`; per il luogo in 3D `pyshp` e
+`tifffile`, in Python puro (niente `rasterio`, `pyproj`, `geopandas`: Smart App Control
+blocca le loro DLL, `lessons.md` #31); ambiente in `.venv/`. Codice, identificatori e commenti in **inglese**.
 
 ```
 sim/
@@ -238,6 +340,12 @@ tests/             # pytest -q: about 30 s
   test_hypotheses.py # phases B and C1; known failures are strict xfails
 cases/
   esempio-gatto.json, esempio-cane.json
+proto/luogo3d/     # the place in 3D, prototype outside the engine (docs: "Il luogo in 3D")
+  fetch.py         # open data for one place: OSM, 3D-GloBFP, TINITALY, WorldCover, Copernicus
+  world.py         # layers on a 2 m grid centred on home
+  place3d.py       # surfaces, exits, reachability, anchors; PlaceSimulation (subclass)
+  variants.py      # the three maps side by side and the checks
+  utm.py, cogread.py  # pure-Python UTM and GeoTIFF windows (lessons.md #31)
 ```
 
 Formato del caso (`cases/*.json`):

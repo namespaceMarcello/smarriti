@@ -388,3 +388,88 @@ l'intervallo (0,283 contro 0,18-0,28), il suo passo sale da 1,8 a 3 m (previsto 
 ±20%), il p25 di B1 passa da 10,1 a 10,5-11,0 m, al limite (previsto «regge»). Nei test:
 lo `xfail` di B2 è tolto; il p25 del gatto casa si prova a 100.000 gatti (`--runslow`); il
 p25 di B1 diventa uno `xfail` stretto (`lessons.md` #28, #29).
+
+### 2026-09-26 — L1 — il luogo in 3D, tre varianti sul luogo di prova (gatto di casa, primo piano, 24 ore)
+Cosa: `python -m proto.luogo3d.variants privato/luogo-prova.json privato/luogo` (50.000 gatti,
+seme 0; verità di C1 dal seme 1000). Variante 1 = motore di oggi; 2 = edifici e giardini;
+3 = anche dislivelli e tetti (`simulatore.md`, «Il luogo in 3D — progetto»; `sel` da Hanmer
+2017, porta · finestra da Huang, Tabella 4). Mappa fine a 4 m su ±600 m.
+Previsione (scritta prima di lanciare):
+- P1, distanze delle ancore: 2 e 3 uguali alla 1 entro il 2% su p25/p50/p75/p90 (per
+  costruzione); quota senza anello (oltre la griglia) 0,11-0,13 (P(r > 580 m) = 0,12).
+- P2, distanze dei gatti liberi a 24 ore: p25/p50/p75 di 2 e 3 entro il ±10% della 1; il
+  p50 più corto per i passi rifiutati: 2 fra −8% e +3%, 3 fra −10% e +3%.
+- P3, area della regione al 50%: 2 fra 0,65 e 0,90 volte la 1; 3 fra 0,55 e 0,90.
+- P4, tipi delle ancore contro Huang, Tabella 6 (entro un fattore 2): `veg` 0,15-0,25 (Huang
+  0,25), `garden`+`open` 0,40-0,55 (cortile 0,27: al limite), `edge` 0,20-0,30 (0,38),
+  `street` 0,05-0,12 (0,10).
+- P5, Manly entro 200 m: ancore della 2 come Hanmer entro ±0,05 (0,553 · 0,311 · 0,136);
+  nella 3 il costruito più basso (0,20-0,30: i tetti si raggiungono poco); gatti liberi a
+  24 ore diluiti verso 1/3: giardino 0,40-0,50, costruito 0,30-0,40, naturale 0,17-0,27;
+  variante 1 circa 1/3 ciascuno (0,30-0,37).
+- P6, C1 sulla mappa fine: nella regione al 50% cade 0,45-0,58 delle verità, al 75%
+  0,70-0,80, in tutte e tre.
+- P7, direzione: centro di massa dei liberi a meno di 5 m da casa nella 1, a 5-30 m nella
+  2, a 10-40 m nella 3, spostato in discesa (a est) rispetto alla 2.
+- Tempo: meno di 60 s in tutto.
+Risultato (`privato/luogo/varianti-24h.json`, 2,8 s in tutto): P(libero) 0,994.
+- P1 ✓: ancore 12,0 / 48,9 / 203,2 / 719,6 m nella 1, 12,1 / 48,9 / 202,9 / 719,6 nella 2 e 3;
+  senza anello 0,130.
+- P2 ✗: liberi a 24 ore 24,8 / 57,9 / 177,9 m (1), 18,9 / 48,4 / 153,8 (2), 19,0 / 48,6 / 153,0
+  (3): la mediana **−16%**, fuori dal ±10%. Il passo rifiutato quando finisce in un edificio
+  lascia il gatto dietro le case, lontano dall'ancora (`lessons.md` #33).
+- P3 ✗: regione al 50% 1,04 ha (1), 0,44 (2), 0,45 (3): 0,43 volte, sotto 0,65 (in parte
+  per P2: le distanze più corte).
+- P4: ancore della 2 `veg` 0,09 ✗ (Huang 0,25: fuori dal fattore 2), `garden`+`open` 0,49 ✓
+  (0,27: 1,8 volte), `edge` 0,27 ✓ (0,38), `street` 0,15 ✗ sulla previsione, ✓ sul fattore 2
+  (0,10). Nella 1 (direzione a caso) il 28% delle ancore cade dentro un edificio.
+- P5 ✗: Manly delle ancore della 2: giardino 0,651, costruito 0,282, naturale 0,067 (Hanmer
+  0,553 · 0,311 · 0,136); nella 3 0,647 · 0,283 · 0,070; liberi 0,585 · 0,295 · 0,120; la 1
+  0,419 · 0,466 · 0,115, non 1/3 ciascuno. La disponibilità del controllo conta gli edifici
+  come costruito, dove nella 2 il gatto non può stare: il controllo non misura la stessa
+  cosa del modello (`lessons.md` #34).
+- P6 ✓: C1 0,495 / 0,745 (1), 0,472 / 0,730 (2), 0,476 / 0,728 (3).
+- P7: centro di massa 5,3 m (1, ✗ di poco), 8,0 m (2 ✓), 4,0 m (3 ✗, previsto 10-40); la 3 sta
+  1,5 m più a est della 2 (verso giusto, misura trascurabile).
+- La 3 è quasi uguale alla 2: **nessun tetto** raggiungibile entro 200 m (0 celle), finestra
+  66 celle contro 87, raggiungibilità media a terra 0,74 contro 0,84. Con altezze a 8 m di
+  mediana e terreno a 10 m un tetto non è mai a portata di salto: i dislivelli visibili nei
+  dati aperti di oggi cambiano poco (una premessa che dà quasi zero, `lessons.md` #35).
+Verdetto: giuste P1, P6, il tempo; sbagliate P2, P3, P5, P7 per la 3, P4 su `veg`. Si corregge
+il passo (sotto, L1b) prima di mandare le immagini.
+
+### 2026-09-26 — L1b — le tre varianti con il passo corretto (`lessons.md` #33)
+Cosa: come L1; il punto d'arrivo di un passo che cade dove il gatto non può stare si
+sposta sulla cella libera più vicina (prima: passo rifiutato). Ancore invariate.
+Previsione (scritta prima di lanciare):
+- P1, P4 invariate (le ancore non cambiano).
+- P2: liberi a 24 ore, p25/p50/p75 di 2 e 3 entro il ±10% della 1; la mediana fra −5% e +5%
+  (sul luogo sintetico fitto: entro il 3%).
+- P3: regione al 50% della 2 fra 0,50 e 0,75 volte la 1 (L1 0,43 con le distanze accorciate;
+  il solo togliere gli edifici vale circa 0,67).
+- P5b, Manly con disponibile = dove il gatto può stare (senza edifici): ancore della 2
+  giardino 0,50-0,62, costruito 0,28-0,38, naturale 0,06-0,14 (la raggiungibilità pesa
+  ancora il naturale); liberi più vicini a 1/3.
+- P6: C1 dentro 0,45-0,58 e 0,70-0,80 in tutte e tre.
+- P7b: distanza di variazione totale fra le mappe: 3 contro 2 sotto 0,10; 2 contro 1 fra
+  0,30 e 0,50.
+Risultato (`privato/luogo/varianti-24h.json`):
+- P2 ✓: liberi a 24 ore 24,8 / 57,9 / 177,9 m (1), 24,7 / 58,0 / 179,1 (2), 24,8 / 57,8 / 179,4 (3).
+- P3 ✓: regione al 50% 1,04 ha (1), 0,72 (2), 0,73 (3): 0,69 volte. Al 75%: 9,8 · 7,9 · 8,0 ha.
+- P5b ✗: ancore della 2, disponibile senza edifici: giardino 0,500, costruito 0,448, naturale
+  0,052. Ma la stessa lettura nella 1 (direzione a caso) dà 0,280 · 0,644 · 0,077: le ancore
+  stanno vicino a casa, dove c'è più costruito, e un disco di 200 m non è la disponibilità
+  giusta. Letta **contro la 1** (stessa distanza, cambia solo la direzione: lettura fatta
+  dopo, non prevista): 1,79 · 0,70 · 0,68, standardizzati **0,56 · 0,22 · 0,21** contro Hanmer
+  0,553 · 0,311 · 0,136: il giardino torna, il naturale esce più alto (`lessons.md` #36).
+- Gatti liberi a 24 ore: 0,29 · 0,63 · 0,08 nella 2 contro 0,25 · 0,66 · 0,09 nella 1: la
+  selezione delle ancore quasi non arriva alla mappa. In 24 ore il gatto fa circa 4 passi di
+  25 m di mediana (media 41 m) con richiamo 0,5: il rumore del passo è grande quanto la
+  distanza dell'ancora (mediana 49 m) e il passo non guarda il tipo di posto.
+- P6 ✓: C1 0,495 / 0,745 (1), 0,481 / 0,741 (2), 0,481 / 0,741 (3).
+- P7b: variazione totale 2 contro 1 **0,27** (✗, previsto 0,30-0,50), 3 contro 2 **0,05** ✓.
+Verdetto: il passo corretto tiene le distanze (A e B1 reggono) e la mappa con gli edifici è
+calibrata e più stretta del 31%. La direzione pesa poco: le ancore scelgono, il passo
+diluisce. La 3 aggiunge poco ai dati aperti di oggi (#35). Prossima idea dai numeri: la
+selezione anche nel passo (il moltiplicatore `stay` del motore per tipo di posto, tempo ∝
+selezione), con le distanze da ricontrollare.

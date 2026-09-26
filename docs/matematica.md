@@ -12,10 +12,13 @@ validati per persone disperse e animali selvatici. Le fonti complete stanno in
 | **Lost Person Behavior** (Koester, ISRID) | il modello da battere: per categoria «il 50% entro X, il 95% entro Y», cioè anelli attorno al punto di partenza | Koester 2008; Sava 2015 | in uso come confronto (fase C) |
 | **Ecologia del movimento** | passeggiate casuali correlate con pause, code «grasse» (i salti lunghi rari), attrazione verso un nascondiglio (Ornstein-Uhlenbeck) | Tilles 2016; Patterson 2017 | in uso |
 | **Analisi di sopravvivenza** | la curva «probabilità che sia ancora libero dopo N giorni», con uscite diverse: raccolto, tornato, morto | Huang 2018 per i gatti | in uso (rischi orari) |
-| **Rischi in competizione** | le uscite dallo stato libero si tarano insieme, all'ora dell'evento, sulla curva dei ritrovamenti | — | da provare (`lessons.md` #8) |
+| **Rischi in competizione** | le uscite dallo stato libero si tarano insieme, all'ora dell'evento, sulla curva dei ritrovamenti | — | in uso: taratura dei gatti (A5, `lessons.md` #8) |
 | **Stima della densità a nucleo adattiva** | da punti a mappa: ogni particella si allarga quanto la distanza dalla 10ª vicina, stretta dove sono fitte, larga dove sono rade; si calcola per classi di σ su griglie via via più rade | Breiman, Meisel & Purcell 1977 (da verificare alla fonte) | in uso: la mappa (C1 e C2 superate, `MISURE.md`) |
 | **Calibrazione della previsione** | una mappa è una probabilità solo se la verità cade nel suo 90% nove volte su dieci; si misura con verità estratte dallo stesso modello | — | in uso (C1) |
 | **Intervalli dei quantili senza ipotesi** | l'intervallo di un quantile dalle statistiche d'ordine (binomiale): un test passa solo se tutto l'intervallo sta nella tolleranza | — | in uso (`tests/conftest.py`) |
+| **Funzione di selezione delle risorse** (rapporti di Manly) | quanto un animale usa un tipo di posto rispetto a quanto ce n'è: uso / disponibilità, standardizzato a somma 1. Nel luogo in 3D è il peso di ogni tipo di posto | Hanmer 2017 (gatti: giardino 0,553, costruito 0,311, naturale 0,136) | in uso nel prototipo; si legge contro il modello senza luogo alla stessa distanza (`lessons.md` #36) |
+| **Cammino minimo su una griglia di costi** (Dijkstra) | quanto costa arrivare a ogni posto dalle uscite di casa: edifici e tetti alti sono muri, le strade grandi costano, la salita costa; `reach = distanza in linea d'aria / costo` | — | in uso nel prototipo (`scipy.sparse.csgraph.dijkstra`, 360.000 celle in 0,2 s) |
+| **Campionamento condizionato all'anello** | si estrae prima la distanza (dalla taratura), poi la direzione fra le celle a quella distanza con i pesi del luogo: la distribuzione delle distanze resta esatta, cambia solo la direzione | — | in uso nel prototipo (prova: `test_place3d.py`) |
 | **Valori estremi** (Gumbel) | la coda delle distanze: fino a dove può arrivare. In Python `scipy.stats.genextreme` | — | da provare |
 
 ## Come si incastrano
@@ -40,5 +43,6 @@ provata contro i numeri pubblicati (A, B) e contro gli anelli (C)
 ## Strumenti pronti
 
 Python: `scipy.spatial.cKDTree` e `scipy.ndimage` (densità a nucleo), `scipy.stats`
-(valori estremi), `lifelines` (sopravvivenza), `osmnx` (OpenStreetMap). R: `ctmm`,
+(valori estremi), `scipy.sparse.csgraph` (cammini minimi), `lifelines` (sopravvivenza),
+`pyshp` e `tifffile` (shapefile e GeoTIFF in Python puro: `lessons.md` #31). R: `ctmm`,
 `moveHMM` (ecologia del movimento).

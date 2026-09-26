@@ -33,7 +33,7 @@ time to call shelters and vets.
 
 ```bash
 py -3.12 -m venv .venv
-.venv/Scripts/python -m pip install numpy scipy matplotlib pytest
+.venv/Scripts/python -m pip install numpy scipy matplotlib pytest pyshp tifffile
 .venv/Scripts/python -m sim cases/esempio-gatto.json --now 2026-09-22T08:00 --out out/
 .venv/Scripts/python -m pytest -q
 ```
@@ -51,7 +51,11 @@ Simulator v0, September 2026: calibrated on the published distances, and its map
 the simpler ring model (on synthetic cases the area to search before reaching the animal
 is 0.39 times the rings' at the median, 0.42 at the 90th percentile; `docs/MISURE.md`).
 Next: the place in 3D, from open data (buildings and their heights, the floor, gardens,
-walls, steps, streets, slopes), so that the map knows not only how far but where. The documentation is in
+walls, steps, streets, slopes), so that the map knows not only how far but where. A first
+prototype runs outside the engine (`proto/luogo3d/`): it builds a 2 m grid of one place from
+OpenStreetMap, 3D-GloBFP building heights, the TINITALY terrain and ESA WorldCover, keeps the
+calibrated distance and lets the place choose the direction (published habitat selection
+of cats, Hanmer et al. 2017). The documentation is in
 Italian for now: `docs/progetto.md` (what we build), `docs/simulatore.md` (the model),
 `docs/matematica.md`, `docs/riferimenti.md` (studies and data), `docs/STATO.md`.
 

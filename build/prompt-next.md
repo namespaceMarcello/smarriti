@@ -1,67 +1,53 @@
 # Prompt per la prossima sessione
 
-Scritto il 2026-09-26, dopo il commit di A5 e della decisione «niente casi raccolti da
-noi». Si sostituisce a fine sessione.
+Scritto il 2026-09-26, dopo il primo prototipo del luogo in 3D (L1, L1b). Si sostituisce a
+fine sessione.
 
 ---
 
-Costruisci il primo prototipo del **luogo in 3D** e mostra a Marcello 3 varianti di mappa
-**prima** di toccare il motore.
+Porta nel motore il luogo in 3D **secondo la variante scelta da Marcello** (1 oggi a cerchi,
+2 con edifici e giardini, 3 con anche i dislivelli: `privato/luogo/varianti-24h.png`). Se la
+sua scelta non è ancora nella conversazione, chiedigliela prima di toccare `sim/`.
 
-Leggi, in quest'ordine: `CLAUDE.md`, `docs/STATO.md` (le decisioni «Il luogo in 3D, al
-metro» e «Niente casi raccolti da noi»), `docs/progetto.md` (tappa 2), `docs/simulatore.md`
-(§ L'ambiente: la zona, § Movimento, § Come si tara), `docs/riferimenti.md` §A (Zhang 2022,
-Xia & Zhao 2024, Bischof 2022) e §B (OpenStreetMap, GlobalBuildingAtlas, LiDAR del
-Ministero), `docs/lessons.md` #20, e `privato/luogo-prova.md` (il luogo di prova: un
-indirizzo vero di Napoli, fuori da git; **mai** nei documenti, nei test, nei commit).
+Leggi, in quest'ordine: `CLAUDE.md`, `docs/STATO.md` (la decisione sulle fonti del
+2026-09-26 e il problema «Il luogo in 3D aspetta la scelta»), `docs/simulatore.md` § «Il
+luogo in 3D — progetto» (regole, parametri con fonte, prove 1-5, esito), `docs/MISURE.md`
+L1 e L1b, `docs/lessons.md` #30-#36, `docs/riferimenti.md` §A (Huang Tabelle 4 e 6, Hanmer
+2017, Fardell 2021, Bischof 2022) e §B (3D-GloBFP, TINITALY, WorldCover, ANNCSU, LiDAR), il
+codice in `proto/luogo3d/`, e `privato/luogo-prova.md` (il luogo vero: **mai** nei
+documenti, nei test, nei commit).
 
-Il perimetro, deciso da Marcello (non si ridiscute): dentro, la forma vera del luogo della
-fuga (edifici con le altezze, il piano, giardini, muri, tetti, scale, strade, dislivelli),
-misurata in automatico da dati aperti, che decide dove l'animale può andare e nascondersi;
-fuori, studiare i posti uno per uno e qualsiasi informazione dopo la perdita. Niente casi
-raccolti da noi: la risposta viene da matematica, studi pubblicati e dati aperti.
+Stato: il prototipo sta fuori dal motore (`PlaceSimulation` è una sottoclasse di
+`sim.engine.Simulation`). Sul luogo di prova, gatto di casa dal primo piano a 24 ore: le
+distanze restano quelle di A5 (entro l'1%), C1 regge (0,48 / 0,74), la regione al 50% scende
+da 1,04 a 0,72 ha; la selezione di Hanmer sceglie le ancore ma il passo attorno all'ancora la
+diluisce (liberi 0,29 · 0,63 · 0,08 contro 0,25 · 0,66 · 0,09 senza luogo); la variante 3
+differisce dalla 2 del 5% perché nessun tetto è a portata di salto con altezze a 8 m e
+terreno a 10 m. `pytest -q`: i test di prima più `tests/test_place3d.py` (8, < 1 s).
 
-Stato: A5 fatta (gatti a rischi in competizione; B2 passa; C2 regge a 0,39 · 0,42 degli
-anelli). `pytest -q`: 68 passati, 1 lento saltato, 4 `xfail` stretti in ~40 s
-(`--runslow` per il lento). Oggi la mappa è a cerchi: la direzione la può dare solo il 3D.
-Sul luogo di prova OpenStreetMap ha 478 edifici e **nessuna** altezza
-(`privato/osm-luogo-prova.json`, già scaricato).
+Il lavoro, secondo la scelta:
+1. **Variante 2 o 3**: spostare in `sim/` quello che serve (un modulo `sim/place.py` con
+   mondo, superfici, uscite, raggiungibilità, ancore; il caso accetta un luogo), senza
+   cambiare nulla per chi non passa un luogo. Dopo ogni modifica al motore si rifà la
+   taratura (`lessons.md` #17) e si rilanciano A, B, C1, C2.
+2. **La selezione nel passo**: il moltiplicatore `stay` del motore per tipo di posto, in
+   modo che il tempo passato stia come i rapporti di Hanmer, normalizzato perché le
+   distanze non cambino (prove 1-2). Previsione prima: di quanto sale la variazione totale
+   contro la variante 1 (oggi 0,27) e se i liberi tornano con Hanmer letti contro la 1.
+3. **Variante 1**: niente motore; si passa al punto 2 di `STATO.md` (Dallas e Austin).
+4. Le fonti aperte al metro (niente email al Ministero, `lessons.md` #37): leggere il resoconto della
+   ricerca in `docs/riferimenti.md` §B e portare in `proto/luogo3d/fetch.py` quelle verificate.
 
-Il lavoro:
-1. **Dati**, tutti aperti, per ~500 m attorno al luogo di prova, salvati in `privato/`:
-   altezze da GlobalBuildingAtlas (prima la licenza: il progetto è AGPL; leggi solo il
-   riquadro, per esempio GeoParquet su source.coop, non la piastrella da 5°); terreno da
-   Tinitaly 10 m (INGV) o Copernicus DEM 30 m; verde da ESA WorldCover 10 m. Il LiDAR del
-   Ministero (1 m) si chiede per email: prepara il testo per Marcello (area, uso, prodotto:
-   DTM e DSM) con i passi per mandarla. Ogni dataset in `riferimenti.md` §B con la fonte,
-   senza l'indirizzo.
-2. **Studi per le regole fini**: cerca gli studi GPS su come i gatti usano l'ambiente
-   (riparo, vegetazione, edifici, strade: funzioni di selezione dell'habitat) e prendi i
-   numeri alla fonte, in `riferimenti.md` §A. Una regola senza studio resta una stima
-   dichiarata in `simulatore.md`.
-3. **Progetto prima del codice**, in `docs/simulatore.md` § L'ambiente: «quanto lontano
-   dagli studi, dove dal 3D». L'ancora (il nascondiglio) si sceglie fra i posti veri con
-   peso = densità della distanza tarata × qualità del riparo × raggiungibilità (salti dal
-   piano, muri, strade larghe), normalizzata in modo che la distribuzione delle distanze
-   resti quella di A5: cambia solo la direzione. Come si prova senza casi: A e B reggono
-   ancora; C1 regge; le quote di tempo per tipo di posto tornano con gli studi GPS.
-4. **Varianti**, per un gatto di casa scappato dal primo piano, a 24 ore: (1) oggi, a
-   cerchi; (2) con edifici e giardini; (3) con anche i dislivelli. PNG numerati affiancati in
-   `privato/` (mostrano il luogo vero), mandati a Marcello con `SendUserFile`. **Fermati e
-   aspetta la sua scelta** prima di portarla nel motore.
-5. Prima di ogni misura, la previsione in `docs/MISURE.md`.
+Regole: la previsione in `docs/MISURE.md` prima di ogni misura; ogni errore e ogni
+previsione sbagliata subito in `docs/lessons.md` (cosa, perché, regola, controllo). Test
+statistici sull'intervallo a 4 errori standard (#28); un controllo contro uno studio usa le
+definizioni del modello (#34) e si legge contro la variante senza luogo (#36). Se esiste
+`~/.claude/macchina-ferma` i comandi pesanti partono a priorità bassa. Agenti mai Fable;
+lavora tu, al massimo un Sonnet per una lettura grossa, dicendo perché. Niente commit né push
+finché non li chiede Marcello. Prima di un commit i documenti: `FATTO.md`, `STATO.md`,
+`simulatore.md`, `CLAUDE.md` se cambiano i comandi.
 
-Regole: ogni errore e ogni cosa che fallisce va subito in `docs/lessons.md` (cosa, perché,
-regola, controllo); anche una previsione sbagliata. Test sotto i ~40 s (quelli che chiedono
-troppi campioni diventano `slow`); ogni test statistico guarda l'intervallo a 4 errori
-standard, mai un valore puntuale (#28). Dopo ogni modifica al motore si rifà la taratura.
-Se esiste `~/.claude/macchina-ferma`, un'altra finestra misura tempi: i comandi pesanti
-partono a priorità bassa. Agenti mai Fable; lavora tu, al massimo un Sonnet per una lettura
-grossa, dicendo perché. Niente commit né push finché non li chiede Marcello. Prima di un
-commit i documenti: `docs/archivio/FATTO.md`, `docs/STATO.md`, `docs/simulatore.md`,
-`CLAUDE.md` se cambiano i comandi.
-
-Aspettano Marcello: il nome del progetto e, se il LiDAR serve, l'email al Ministero.
+Aspettano Marcello: la scelta della variante, il nome del progetto.
 
 A fine lavoro: resoconto in due punti (cosa è stato implementato, come lo provo) e il
 prompt per la sessione dopo in `build/prompt-next.md`.
