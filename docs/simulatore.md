@@ -324,7 +324,8 @@ partenza e «adesso» (fra 12 ore e 10 giorni) casuali. Anelli ai quantili 25/50
 della distanza della categoria a quell'ora, sulla stessa griglia da 50 m. Misura: area da
 cercare, dalla cella più probabile, prima di arrivare alla verità (mediana e 90°
 percentile), e copertura al 50% e 90%; per verità, senza gradini (`lessons.md` #26): quota
-dove il simulatore cerca meno e media geometrica del rapporto. Il simulatore **batte** se
+dove il simulatore cerca meno, media geometrica del rapporto e area tipica di ogni mappa (la media
+geometrica dell'area, quella della tabella del README). Il simulatore **batte** se
 mediana e 90° percentile sono tutti e due sotto gli anelli. Se non batte, ci si ferma e si decide con Marcello.
 In una zona uniforme il simulatore è per costruzione radiale come gli anelli: può batterli
 in distanza (una densità più fedele di quattro anelli) ma in direzione solo con la mappa
@@ -380,7 +381,8 @@ sim/
   calibrate.py     # phase A
   validate.py      # phase B, and C1 (map calibration: --coverage)
   baseline.py      # phase C: ring model vs simulator
-  compare.py       # before / rings / now, side by side (out/confronto-prima-dopo.png)
+  compare.py       # before / rings / now, side by side (out/confronto-prima-dopo.png);
+                   # --readme: rings and map in English, the README's figure (docs/img/)
   cli.py           # python -m sim <case.json> --now <iso> --out <dir>
   fingerprint.py   # hashes of 7 runs without a place: before and after an engine change
 tests/             # pytest -q: about 30 s

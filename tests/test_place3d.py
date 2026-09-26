@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 from proto.luogo3d.cogread import _undo_predictor
+from proto.luogo3d import fetch
 from proto.luogo3d.fetch import tinitaly_tile
 from proto.luogo3d.utm import from_utm, to_utm
 from sim.case import parse_case
@@ -32,6 +33,13 @@ def test_tinitaly_tile_name_from_south_west_edge():
     assert tinitaly_tile(938_937.4, 4_537_855.7) == "w45090_s10"
     assert tinitaly_tile(900_000.0, 4_500_000.0) == "w45090_s10"
     assert tinitaly_tile(899_999.0, 4_549_999.0) == "w45085_s10"
+
+
+def test_lidar_outside_its_province_is_skipped(tmp_path, monkeypatch):
+    # lessons.md #59: outside the province of Naples the tile index is empty; the fetch goes on
+    monkeypatch.setattr(fetch, "get", lambda url, timeout=300: json.dumps({"features": []}).encode())
+    fetch.fetch_lidar(fetch.coarse_box(41.9, 12.5), tmp_path, tmp_path / "cache")  # Rome
+    assert not (tmp_path / "lidar.npz").exists()
 
 
 def test_floating_point_predictor_round_trip():

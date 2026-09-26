@@ -24,7 +24,7 @@ un passo fatto si cancella (e va in `archivio/FATTO.md`), una decisione superata
 | 2026-09-25 | Ordine: simulatore → mappa della zona da OpenStreetMap → sito (si inserisce il caso, esce la mappa) | |
 | 2026-09-25 | **Non è un'app.** È un sito che si apre da un link: niente store, niente installazione | alla portata di tutti |
 | 2026-09-25 | TiTrovo (`IoTiTrovo`) resta separata: solo riferimento | Marcello |
-| 2026-09-25 | Repo **pubblico** su GitHub (`namespaceMarcello/smarriti`); README in inglese, documenti in italiano | Marcello |
+| 2026-09-25 | Repo **pubblico** su GitHub (`namespaceMarcello/smarriti`); README in inglese, documenti in italiano. Il README ha solo numeri di oggi (misura R): la tabella da `sim.baseline`, la figura da `sim.compare --readme`, le distanze e C1 da `MISURE.md`; si rimisura quando un cambio li muove | Marcello |
 | 2026-09-25 | Licenza **AGPL-3.0** | i miglioramenti restano in comune; cambiabile finché non c'è un contributore esterno |
 | 2026-09-25 | Cartella e repo provvisori `smarriti`; nome da scegliere (`gh repo rename` quando c'è) | |
 

@@ -195,6 +195,9 @@ def fetch_lidar(box, out: Path, cache: Path) -> None:
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_bytes(get(url, timeout=600))
             tiles.append(read_asc(path))
+        if not tiles:  # outside the province of Naples: the place is built without it
+            print("lidar: no tile here (it covers only the province of Naples)")
+            return
         left, top = min(t[1] for t in tiles), max(t[2] for t in tiles)
         right = max(t[1] + t[0].shape[1] * t[3] for t in tiles)
         bottom = min(t[2] - t[0].shape[0] * t[3] for t in tiles)

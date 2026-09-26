@@ -1241,3 +1241,42 @@ volte più del tarato, e le distanze vicine si allungano. Il motore resta Hanmer
 predefinita `"hanmer"`); `"lost"` è un'opzione con i suoi test, e il fallimento è un xfail
 stretto (`test_the_lost_rule_keeps_the_walk_distances`). Prossimo: il nascondersi come tempo
 passato fermo in un riparo che tenga le distanze di A5.
+
+### 2026-09-26 — R — i numeri del README, rimisurati a macchina libera (scritto prima di lanciare)
+Perché: il README mostra solo numeri di oggi. L'ultima misura di B, C1 e C2 è A5; dopo sono
+cambiati solo il luogo (L2-L14, con l'impronta senza luogo identica al bit a ogni passo) e
+l'uscita di `sim.baseline`, che ora scrive anche l'area tipica (media geometrica) di ogni mappa.
+Previsione:
+- `sim.fingerprint` identica a L14;
+- C2 (`sim.baseline`, stessi semi) identica ad A5 al bit: rapporto 0,388 · 0,422, cerca meno 0,674,
+  media geometrica 0,548; il rapporto fra le aree tipiche nuove è uguale alla media geometrica
+  del rapporto di A5 in ogni categoria (0,549 · 0,329 · 0,835 · 0,814 · 0,546);
+- B e C1 (`sim.validate`, `--coverage`) identiche ad A5 (B1 11,0 / 72,1 / 462,6 m, B3 0,814);
+- distanze contro gli studi, come `tests/test_targets.py` ma con 100.000 gatti e 40.000 cani
+  (seme 21): gatto casa 9-10 / 40-42 / 138-146 m (A5 9,4 / 40,6 / 142,4), errore ≤ 0,08; gatto
+  libero errore 0,25-0,30 (A5 0,283); cani 98-110 m e 1.420-1.580 m (A4 103,9 / 1.500), errore
+  0,12-0,16;
+- `pytest -q` verde, con il test nuovo del LiDAR (#59) e gli xfail stretti di prima.
+Comando: `python -m sim.fingerprint`, `python -m sim.baseline`, `python -m sim.validate`,
+`python -m sim.validate --coverage`, `python -m pytest -q`; le distanze con `cat_readings` e
+`dog_run` di `sim.calibrate`.
+Risultato (22:38-23:16, macchina libera):
+- C2 **identica ad A5 al bit** ✓ (0,388 · 0,422, cerca meno 0,674, geometrica 0,548, ogni
+  categoria uguale). Aree tipiche nuove, anelli → simulatore (ha): tutte 221 → 121; gatto casa 5,88
+  → 3,23; gatto libero 317 → 104; cane socievole 2,52 → 2,10; diffidente 4.169 → 3.393; pauroso
+  3.497 → 1.908. I rapporti sono le medie geometriche di A5 ✓ (socievole 0,833 contro 0,835:
+  l'arrotondamento delle aree).
+- B e C1 identiche ad A5 al bit ✓. Nella previsione ho scritto B3 0,814, il numero di B: A5 aveva
+  già 0,816, ed esce 0,816. C1: al 50% fra 0,453 e 0,551, al 90% fra 0,869 e 0,898.
+- Distanze (seme 21): gatto casa 8,7 / 40,3 / 140,3 m, errore 0,032 (il primo quartile appena sotto
+  il 9-10 previsto ✗, il resto ✓); gatto libero 17,0 / 231,1 / 1.410,5 m, errore 0,23 ✗ (previsto
+  0,25-0,30: il primo quartile a 17 invece di 18); cani 105,8 m e 1.504 m ✓, errore 0,119 (appena
+  sotto lo 0,12-0,16 previsto ✗).
+- `pytest -q`: 96 passati, 1 saltato, 5 xfail, 37,8 s ✓. Gli esempi: 0,39 s (gatto), 0,49 s (cane).
+- Impronta senza luogo: `12123784d829603c` (gatto) · `4b3a77e8efba350d` (cane) · `2c6e9e97540002f9`
+  · `89c6eef0f37ef87c` · `1da15345bf955a4c` · `748d473eb93d119c` · `d431b1dcc9647eaa` (le cinque
+  categorie). Quella di L14 non era scritta: da qui c'è un riferimento.
+Verdetto: il README porta numeri di oggi, e il motore senza luogo non si è mosso da A5. Gli scarti
+delle distanze da A5 vengono da un altro seme e da un altro campione (A5 le leggeva nella
+taratura): non misurati oltre. Le previsioni «al limite» sbagliate di poco dicono che gli
+intervalli erano scritti senza l'errore del campione (`lessons.md` #60).

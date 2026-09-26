@@ -114,3 +114,10 @@ edifici diversi da casa che toccano terreno raggiungibile il riparo di Huang (`h
 motore resta Hanmer: con `lost` le distanze vicine si allungano (xfail stretto). Si prova:
 `python -m proto.luogo3d.variants privato/luogo-prova.json privato/luogo --preference lost`
 (`varianti-24h-lost.json`), `pytest -q tests/test_place3d.py -k lost`.
+
+**2026-09-26 — Il README con i numeri di oggi (R).** Riscritto sulla forma della guida di
+Trochilus: cosa fa, risultati contro gli anelli (area tipica per animale), cosa ha di diverso, come
+si prova, cosa manca; in cima la figura anelli contro mappa. `sim.baseline` scrive l'area tipica di
+ogni mappa; `sim.compare --readme` disegna la figura; `proto.luogo3d.fetch` salta il LiDAR fuori
+dalla provincia di Napoli (#59). Si prova: il README su GitHub; `python -m sim.baseline` rifà la
+tabella; `pytest -q tests/test_place3d.py -k lidar`.

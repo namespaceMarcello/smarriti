@@ -96,6 +96,7 @@ Stack: simulatore in Python 3.12 (`numpy`, `scipy`, `matplotlib`, `pytest`; `pys
 .venv/Scripts/python -m sim.validate              # fase B; --coverage per C1 (mappa calibrata?)
 .venv/Scripts/python -m sim.baseline              # fase C: anelli contro simulatore, ~45 s
 .venv/Scripts/python -m sim.compare               # immagine prima / anelli / ora (out/confronto-prima-dopo.png), 2 s
+.venv/Scripts/python -m sim.compare --readme docs/img/where-to-search.png   # la figura del README
 .venv/Scripts/python -m pytest -q                 # ~50 s; --runslow aggiunge i test lenti (~20 s)
 .venv/Scripts/python -m sim.fingerprint           # impronta del motore senza luogo: prima e dopo ogni modifica, 5 s
 .venv/Scripts/python -m proto.gps.build_cats 72   # gatti GPS di Cat Tracker del Regno Unito: tracce e luogo da OSM (riprende dalla cache)

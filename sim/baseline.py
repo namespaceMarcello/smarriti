@@ -117,6 +117,7 @@ def summarize(rows: list[dict]) -> dict:
         a = np.concatenate([r[model]["area_ha"] for r in rows])
         out[model] = {
             "area_ha_p50": round(float(np.median(a)), 2), "area_ha_p90": round(float(np.quantile(a, 0.9)), 2),
+            "area_ha_geomean": round(float(np.exp(np.mean(np.log(a)))), 2),  # the "typical area" of sim.compare
             "cover50": round(float(np.mean(np.concatenate([r[model]["in_hpd50"] for r in rows]))), 3),
             "cover90": round(float(np.mean(np.concatenate([r[model]["in_hpd90"] for r in rows]))), 3),
         }

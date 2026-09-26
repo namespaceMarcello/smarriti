@@ -1,6 +1,6 @@
 # Prompt per la prossima sessione
 
-Scritto il 2026-09-26, dopo L13 e L14. Si sostituisce a fine sessione.
+Scritto il 2026-09-26, dopo L13, L14 e R (il README). Si sostituisce a fine sessione.
 
 ---
 
@@ -20,9 +20,12 @@ Dove siamo:
   (alla porta) si muove 1,5-1,7 volte più del tarato e il primo quartile delle distanze sale del
   13-28% (xfail stretto `test_the_lost_rule_keeps_the_walk_distances`). Con le sole ancore il
   passo da 10-25 m riporta i gatti negli edifici quasi al caso (0,34 contro 0,33).
+- **R**: il README pubblico ha solo numeri di oggi (la tabella da `sim.baseline`, la figura da
+  `sim.compare --readme`, le distanze e C1 da `MISURE.md` R). Se un cambio al motore ne muove uno,
+  si rimisura e il README cambia nello stesso commit.
 
 Leggi, in quest'ordine: `CLAUDE.md`, `docs/STATO.md` (prossimi passi 1-3), `docs/MISURE.md` L13 e
-L14, `docs/lessons.md` #56-#58, `docs/simulatore.md` («La selezione nel passo» e la tabella dei
+L14, `docs/lessons.md` #56-#60, `docs/simulatore.md` («La selezione nel passo» e la tabella dei
 parametri), `docs/matematica.md` (la catena con attesa), `sim/engine.py` (`_attach`, `step`,
 `_fit_steps`), `sim/place.py`.
 
