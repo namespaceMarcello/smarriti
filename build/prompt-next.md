@@ -1,53 +1,55 @@
 # Prompt per la prossima sessione
 
-Scritto il 2026-09-26, dopo il primo prototipo del luogo in 3D (L1, L1b). Si sostituisce a
-fine sessione.
+Scritto il 2026-09-26, dopo il luogo in 3D nel motore (L2, L3). Si sostituisce a fine
+sessione.
 
 ---
 
-Porta nel motore il luogo in 3D **secondo la variante scelta da Marcello** (1 oggi a cerchi,
-2 con edifici e giardini, 3 con anche i dislivelli: `privato/luogo/varianti-24h.png`). Se la
-sua scelta non è ancora nella conversazione, chiedigliela prima di toccare `sim/`.
+Porta nel mondo del luogo i dati aperti al metro: il LiDAR a 1 m della Città Metropolitana di
+Napoli (terreno e superficie) e le siepi a 5 m di Copernicus. Niente email né richieste a enti
+(`lessons.md` #37).
 
-Leggi, in quest'ordine: `CLAUDE.md`, `docs/STATO.md` (la decisione sulle fonti del
-2026-09-26 e il problema «Il luogo in 3D aspetta la scelta»), `docs/simulatore.md` § «Il
-luogo in 3D — progetto» (regole, parametri con fonte, prove 1-5, esito), `docs/MISURE.md`
-L1 e L1b, `docs/lessons.md` #30-#36, `docs/riferimenti.md` §A (Huang Tabelle 4 e 6, Hanmer
-2017, Fardell 2021, Bischof 2022) e §B (3D-GloBFP, TINITALY, WorldCover, ANNCSU, LiDAR), il
-codice in `proto/luogo3d/`, e `privato/luogo-prova.md` (il luogo vero: **mai** nei
-documenti, nei test, nei commit).
+Leggi, in quest'ordine: `CLAUDE.md`, `docs/STATO.md` (decisioni del 2026-09-26, «Il luogo in
+3D, cosa resta», prossimo passo 1), `docs/simulatore.md` § «Il luogo in 3D», `docs/MISURE.md`
+L1b, L2, L3, `docs/lessons.md` #33-#40, `docs/riferimenti.md` §B (le righe «LiDAR della Città
+Metropolitana», «Copernicus HRL Small Woody Features», «Altezza della chioma a 1 m»), il codice
+in `sim/place.py` e `proto/luogo3d/` (`fetch.py`, `world.py`, `variants.py`), e
+`privato/luogo-prova.md` (il luogo vero: **mai** nei documenti, nei test, nei commit).
 
-Stato: il prototipo sta fuori dal motore (`PlaceSimulation` è una sottoclasse di
-`sim.engine.Simulation`). Sul luogo di prova, gatto di casa dal primo piano a 24 ore: le
-distanze restano quelle di A5 (entro l'1%), C1 regge (0,48 / 0,74), la regione al 50% scende
-da 1,04 a 0,72 ha; la selezione di Hanmer sceglie le ancore ma il passo attorno all'ancora la
-diluisce (liberi 0,29 · 0,63 · 0,08 contro 0,25 · 0,66 · 0,09 senza luogo); la variante 3
-differisce dalla 2 del 5% perché nessun tetto è a portata di salto con altezze a 8 m e
-terreno a 10 m. `pytest -q`: i test di prima più `tests/test_place3d.py` (8, < 1 s).
+Stato: il luogo è nel motore (`Simulation(place=...)`, il caso accetta `"place"`, `python -m
+sim` disegna la mappa a 4 m). Variante 2 (edifici e giardini, senza altezze). Senza luogo il
+motore dà gli stessi bit di prima. Sul luogo di prova, gatto di casa dal primo piano a 24 ore:
+regione al 50% 0,59 ha (1,04 senza luogo), posizioni contro la variante 1 0,50 · 0,34 · 0,16
+(Hanmer 0,553 · 0,311 · 0,136), C1 0,47 / 0,73, distanze entro il 6%. Resta fuori la
+vegetazione di Huang: gatti in `veg` 0,04 contro 0,25 (i cespugli dei giardini a 10 m non si
+vedono). `pytest -q`: 82 passano in ~50 s.
 
-Il lavoro, secondo la scelta:
-1. **Variante 2 o 3**: spostare in `sim/` quello che serve (un modulo `sim/place.py` con
-   mondo, superfici, uscite, raggiungibilità, ancore; il caso accetta un luogo), senza
-   cambiare nulla per chi non passa un luogo. Dopo ogni modifica al motore si rifà la
-   taratura (`lessons.md` #17) e si rilanciano A, B, C1, C2.
-2. **La selezione nel passo**: il moltiplicatore `stay` del motore per tipo di posto, in
-   modo che il tempo passato stia come i rapporti di Hanmer, normalizzato perché le
-   distanze non cambino (prove 1-2). Previsione prima: di quanto sale la variazione totale
-   contro la variante 1 (oggi 0,27) e se i liberi tornano con Hanmer letti contro la 1.
-3. **Variante 1**: niente motore; si passa al punto 2 di `STATO.md` (Dallas e Austin).
-4. Le fonti aperte al metro (niente email al Ministero, `lessons.md` #37): leggere il resoconto della
-   ricerca in `docs/riferimenti.md` §B e portare in `proto/luogo3d/fetch.py` quelle verificate.
+Il compito:
+1. `fetch.py`: le tessere LiDAR per il riquadro (WFS `sit:quadro_unione_lidar_dtm` e `_dsm` su
+   `https://sit.cittametropolitana.na.it/geoserver/ows`, campo `url`; ASCII 500 × 500 a 1 m,
+   EPSG:32633) e la maschera Copernicus a 5 m (`exportImage` sul server EEA). Solo il riquadro
+   arrotondato a 0,01° esce dal computer. Cache in `privato/luogo/cache/`.
+2. `world.py`: il terreno dal DTM a 1 m (medio sulla cella da 2 m), l'altezza sopra il suolo
+   (DSM − DTM), uno strato «cespugli e siepi» (altezza 0,3-3 m fuori dagli edifici, o la
+   maschera di Copernicus). Controllo prima: le quote LiDAR contro TINITALY sul luogo (scarto
+   atteso di pochi metri) e contro il servizio del Ministero in 3 punti (`GetFeatureInfo`).
+3. `sim/place.py`: un tipo di posto per i cespugli, con `sel` da uno studio (Hanmer: il
+   naturale; Huang Tabella 6: sotto la vegetazione 16%); se non c'è, stima dichiarata.
+4. Misura L4 con `proto.luogo3d.variants`: prima la previsione in `MISURE.md` (quanto sale
+   `veg` verso 0,25, quanto cambia la regione al 50%, distanze entro il ±10%, C1 regge). Poi
+   quanti tetti, muri e terrazzamenti sono a portata di salto con il terreno a 1 m: se tanti,
+   la previsione e la misura della variante 3 con i dati nuovi.
 
-Regole: la previsione in `docs/MISURE.md` prima di ogni misura; ogni errore e ogni
-previsione sbagliata subito in `docs/lessons.md` (cosa, perché, regola, controllo). Test
-statistici sull'intervallo a 4 errori standard (#28); un controllo contro uno studio usa le
-definizioni del modello (#34) e si legge contro la variante senza luogo (#36). Se esiste
-`~/.claude/macchina-ferma` i comandi pesanti partono a priorità bassa. Agenti mai Fable;
-lavora tu, al massimo un Sonnet per una lettura grossa, dicendo perché. Niente commit né push
-finché non li chiede Marcello. Prima di un commit i documenti: `FATTO.md`, `STATO.md`,
-`simulatore.md`, `CLAUDE.md` se cambiano i comandi.
+Regole: la previsione prima di ogni misura, con la base letta dal JSON della misura
+precedente (#39); ogni errore e ogni previsione sbagliata subito in `lessons.md`. Test
+statistici a 4 errori standard (#28). Senza luogo il motore non deve cambiare: `python -m sim.fingerprint`
+prima e dopo (L2a); se cambia, si rifà la taratura (#17). Licenza del LiDAR CC
+BY-SA 4.0: i dati derivati restano in `privato/`. Agenti mai Fable; lavora tu, al massimo un
+Sonnet per una lettura grossa, dicendo perché. Niente commit né push finché non li chiede
+Marcello. Prima di un commit i documenti: `FATTO.md`, `STATO.md`, `simulatore.md`,
+`riferimenti.md`, `CLAUDE.md` se cambiano i comandi.
 
-Aspettano Marcello: la scelta della variante, il nome del progetto.
+Aspetta Marcello: il nome del progetto.
 
 A fine lavoro: resoconto in due punti (cosa è stato implementato, come lo provo) e il
 prompt per la sessione dopo in `build/prompt-next.md`.

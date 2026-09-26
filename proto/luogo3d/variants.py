@@ -1,7 +1,7 @@
 """Three maps side by side for one place: 1 today (circles), 2 buildings and gardens,
 3 with heights and slopes. Plus the checks of docs/simulatore.md ("Come si prova").
 
-    python -m proto.luogo3d.variants <place.json> <data_dir> [--hours 24] [--n 50000]
+    python -m proto.luogo3d.variants <place.json> <data_dir> [--hours 24] [--n 50000] [--no-step-selection]
 
 Writes <data_dir>/varianti-<h>h.png (side by side), <data_dir>/variante-{1,2,3}-<h>h.png and
 <data_dir>/varianti-<h>h.json. The images show the real place: they stay private.
@@ -21,10 +21,9 @@ import numpy as np
 from matplotlib.colors import LightSource, ListedColormap
 
 from sim.categories import mixture
-from sim.engine import LOOSE
-from sim.outputs import _smooth, kernel_sigmas
-
-from .place3d import TYPES, Params, Place, PlaceSimulation, World
+from sim.engine import LOOSE, Simulation
+from sim.outputs import _smooth, kernel_sigmas, make_place_grid
+from sim.place import TYPES, Place, PlaceParams, World
 
 CELL = 4.0  # map cells, m
 VIEW = 300.0  # half-width of the picture, m
@@ -33,7 +32,7 @@ TITLES = {1: "1 · Oggi: a cerchi", 2: "2 · Con edifici e giardini", 3: "3 · C
 
 
 def run(world, place, floor, hours, n, seed, hod0=20):
-    sim = PlaceSimulation(mixture("cat_indoor"), n, seed, floor=floor, hod0=hod0, place=place, dir_seed=seed + 7)
+    sim = Simulation(mixture("cat_indoor"), n, seed, floor=floor, hod0=hod0, place=place, place_seed=seed + 7)
     anchors = (sim.ax.copy(), sim.ay.copy())
     sim.run(hours)
     sim.condition_not_home()
@@ -43,21 +42,15 @@ def run(world, place, floor, hours, n, seed, hod0=20):
 def fine_map(world, place, sim):
     """P(loose in cell) on CELL m cells over the world square; masked where the cat cannot stand."""
     loose = (sim.state == LOOSE) & (sim.w > 0)
+    if place is not None:
+        return make_place_grid(sim, CELL).mass, float(sim.w[loose].sum())
     x, y, w = sim.x[loose], sim.y[loose], sim.w[loose]
     half = -world.x0
     m = int(2 * half / CELL)
     s = kernel_sigmas(x, y, CELL) / CELL
     gx, gy = (x + half) / CELL, (y + half) / CELL
     inside = (gx >= 0) & (gx < m) & (gy >= 0) & (gy < m)
-    mass = _smooth((m, m), gx[inside], gy[inside], w[inside], s[inside])
-    if place is not None:
-        ok = (place.surface & (place.reach > 0)).astype(float)
-        f = int(CELL / world.cell)
-        frac = ok.reshape(m, f, m, f).mean(axis=(1, 3))
-        before = mass.sum()
-        mass = mass * frac
-        mass *= before / max(mass.sum(), 1e-300)
-    return mass, float(w.sum())
+    return _smooth((m, m), gx[inside], gy[inside], w[inside], s[inside]), float(w.sum())
 
 
 def hdr_levels(mass, fracs, total):
@@ -88,6 +81,24 @@ def coverage(mass, total, truth_x, truth_y, world, fracs=(0.5, 0.75)):
 
 
 HANMER = {"garden": ("garden", "open"), "anthropogenic": ("edge", "street", "roof"), "natural": ("veg",)}
+HANMER_RATIOS = {"garden": 0.553, "anthropogenic": 0.311, "natural": 0.136}
+
+
+def class_shares(world, place3, x, y, w, radius=200.0):
+    """Share of the weight on each of Hanmer's classes, positions on the ground within `radius`."""
+    iy, ix, ok = world.index(x, y)
+    ok &= np.isfinite(x) & (np.hypot(x, y) <= radius) & (world.bid[iy, ix] < 0)
+    t, ww = place3.type[iy[ok], ix[ok]], w[ok]
+    return {k: float((ww * np.isin(t, [TYPES.index(nm) for nm in names])).sum() / max(ww.sum(), 1e-300))
+            for k, names in HANMER.items()}
+
+
+def against_1(shares, shares1):
+    """lessons.md #36: an effect of the place is read against the map without it, at the same
+    distances: use in this variant / use in variant 1, standardised like Manly's ratios."""
+    r = {k: shares[k] / shares1[k] if shares1[k] > 0 else np.nan for k in HANMER}
+    s = sum(r.values())
+    return {k: round(float(v / s), 3) for k, v in r.items()}
 
 
 def manly(world, place3, x, y, w, radius=200.0, buildings=True):
@@ -158,17 +169,20 @@ def main():
     ap.add_argument("place"); ap.add_argument("data")
     ap.add_argument("--hours", type=int, default=24); ap.add_argument("--n", type=int, default=50_000)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--no-step-selection", action="store_true", help="the place picks the anchors only (L1b)")
     a = ap.parse_args()
     place_cfg = json.loads(Path(a.place).read_text(encoding="utf-8"))
     data = Path(a.data)
     floor = int(place_cfg.get("floor", 1))
     t0 = time.time()
     world = World(data / "world.npz")
-    places = {1: None, 2: Place(world, 2, floor), 3: Place(world, 3, floor)}
+    par = PlaceParams(step_selection=not a.no_step_selection)
+    places = {1: None, 2: Place(world, floor, par=par), 3: Place(world, floor, heights=True, par=par)}
     t_place = time.time() - t0
     home_mask = world.bid == world.bid_home
     base = basemap(world, places[3])
-    out, maps = {"hours": a.hours, "n": a.n, "floor": floor, "t_place_s": round(t_place, 2)}, {}
+    out, maps = {"hours": a.hours, "n": a.n, "floor": floor, "t_place_s": round(t_place, 2),
+                 "step_selection": par.step_selection}, {}
     for v, place in places.items():
         t = time.time()
         sim, (ax_, ay_) = run(world, place, floor, a.hours, a.n, a.seed)
@@ -199,6 +213,12 @@ def main():
         st["manly_loose"] = manly(world, places[3], sim.x[loose], sim.y[loose], sim.w[loose])
         st["manly_anchor_ground"] = manly(world, places[3], ax_, ay_, np.ones(len(ax_)), buildings=False)
         st["manly_loose_ground"] = manly(world, places[3], sim.x[loose], sim.y[loose], sim.w[loose], buildings=False)
+        st["shares_anchor"] = class_shares(world, places[3], ax_, ay_, np.ones(len(ax_)))
+        st["shares_loose"] = class_shares(world, places[3], sim.x[loose], sim.y[loose], sim.w[loose])
+        if v > 1:
+            st["vs1_anchor"] = against_1(st["shares_anchor"], out["1"]["shares_anchor"])
+            st["vs1_loose"] = against_1(st["shares_loose"], out["1"]["shares_loose"])
+        st["sel_ref"] = sim.sel_ref
         if v == 3:
             st["z_floor"] = places[3].z_floor
             st["window_exit_cells"] = int(places[3].exits[1].sum())
@@ -206,6 +226,7 @@ def main():
         maps[v] = (mass, total)
         print(v, json.dumps(st))
     h = a.hours
+    tag = "" if par.step_selection else "-ancore"
     fig, axs = plt.subplots(1, 3, figsize=(21, 7.9))
     for v, ax in zip((1, 2, 3), axs):
         draw(ax, world, base, *maps[v], TITLES[v], home_mask, out[str(v)])
@@ -213,16 +234,16 @@ def main():
     fig.text(0.01, 0.012, "rosso scuro: il 25% più probabile · rosso: 50% · giallo: 75%  —  cerchio bianco: il portone; "
              "contorno nero: la casa", fontsize=11)
     fig.tight_layout(rect=(0, 0.07, 1, 0.95))
-    fig.savefig(data / f"varianti-{h}h.png", dpi=110)
+    fig.savefig(data / f"varianti-{h}h{tag}.png", dpi=110)
     plt.close(fig)
     for v in (1, 2, 3):
         f, ax = plt.subplots(figsize=(8, 8.4))
         draw(ax, world, base, *maps[v], TITLES[v], home_mask, out[str(v)])
-        f.tight_layout(); f.savefig(data / f"variante-{v}-{h}h.png", dpi=110); plt.close(f)
+        f.tight_layout(); f.savefig(data / f"variante-{v}-{h}h{tag}.png", dpi=110); plt.close(f)
     tv = lambda a, b: 0.5 * float(np.abs(maps[a][0] / maps[a][1] - maps[b][0] / maps[b][1]).sum())
     out["tv_distance"] = {"2_vs_1": tv(2, 1), "3_vs_1": tv(3, 1), "3_vs_2": tv(3, 2)}
     print("tv", out["tv_distance"])
-    (data / f"varianti-{h}h.json").write_text(json.dumps(out, indent=1))
+    (data / f"varianti-{h}h{tag}.json").write_text(json.dumps(out, indent=1))
     print(f"total {time.time() - t0:.1f} s")
 
 

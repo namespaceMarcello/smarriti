@@ -40,6 +40,8 @@ class Case:
     collar: bool = False
     floor: int = 0
     environment: Environment = field(default_factory=Environment)
+    place: Path | None = None  # world.npz of the place in 3D (proto/luogo3d/world.py builds it)
+    place_heights: bool = False  # roofs and slopes (docs/simulatore.md, "Il luogo in 3D")
 
     @property
     def projection(self) -> Projection:
@@ -53,7 +55,8 @@ class Case:
         return (self.lost_at.hour + hour + (1 if self.lost_at.minute >= 30 else 0)) % 24
 
 
-def parse_case(data: dict) -> Case:
+def parse_case(data: dict, base: Path | None = None) -> Case:
+    """`base`: the folder the case's relative paths start from (the case file's folder)."""
     home = data["home"]
     proj = Projection(home["lat"], home["lon"])
     area = data.get("area", {})
@@ -69,8 +72,11 @@ def parse_case(data: dict) -> Case:
         collar=bool(data.get("collar", False)),
         floor=int(area.get("floor", 0)),
         environment=Environment(area.get("zone", REFERENCE_ZONE), patches),
+        place=(base or Path(".")) / data["place"]["world"] if "place" in data else None,
+        place_heights=bool(data.get("place", {}).get("heights", False)),
     )
 
 
 def load_case(path: str | Path) -> Case:
-    return parse_case(json.loads(Path(path).read_text(encoding="utf-8")))
+    path = Path(path)
+    return parse_case(json.loads(path.read_text(encoding="utf-8")), path.parent)

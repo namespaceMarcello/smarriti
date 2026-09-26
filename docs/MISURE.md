@@ -473,3 +473,92 @@ calibrata e più stretta del 31%. La direzione pesa poco: le ancore scelgono, il
 diluisce. La 3 aggiunge poco ai dati aperti di oggi (#35). Prossima idea dai numeri: la
 selezione anche nel passo (il moltiplicatore `stay` del motore per tipo di posto, tempo ∝
 selezione), con le distanze da ricontrollare.
+
+### 2026-09-26 — L2 — il luogo nel motore (variante 2) e la selezione anche nel passo
+Cosa: il luogo passa da `proto/luogo3d/place3d.py` a `sim/place.py` e nel motore
+(`Simulation(place=...)`, il caso accetta `"place": {"world": ...}`). Nuovo: la selezione nel
+passo, `p_move × sel_ref / sel(tipo)` per i gatti, con `sel_ref` la media di `sel` sulle ancore
+estratte con la direzione a caso (tiene la media di `p_move`); il tempo passato in un tipo di
+posto va con `sel` (catena con attesa: occupazione ∝ disponibilità × 1 / `p_move`). Stesso luogo,
+gatto, semi e 50.000 particelle di L1b.
+Previsione (scritta prima di lanciare):
+- L2a, senza luogo: il motore dà gli stessi bit di prima (impronta di 7 corse: 2 casi, 5
+  categorie); la taratura A rifatta dà lo stesso `calibrated.json`; B, C1, C2 gli stessi numeri.
+- L2b, `--no-step-selection`: identica a L1b alla cifra (stesso codice, stessi semi).
+- L2c, con la selezione nel passo, variante 2:
+  - P2: liberi a 24 ore entro il ±10% della 1, la mediana entro il ±5%;
+  - P3: regione al 50% fra 0,60 e 0,72 ha (L1b 0,72);
+  - P5c: posizioni dei liberi lette contro la 1, standardizzate: giardino 0,48-0,60,
+    costruito 0,26-0,36, naturale 0,10-0,18 (Hanmer 0,553 · 0,311 · 0,136; L1b 0,38 · 0,32 ·
+    0,30 circa). Il conto: le quote di L1b per `sel / sel_ref` per classe (1,45 · 1 · 0,44)
+    danno 0,55 · 0,32 · 0,13;
+  - P6: C1 dentro 0,45-0,58 e 0,70-0,80;
+  - P7c: variazione totale 2 contro 1 fra 0,30 e 0,40 (L1b 0,27);
+  - ancore lette contro la 1 come L1b (0,56 · 0,22 · 0,21): le ancore non cambiano.
+Risultato (`privato/luogo/varianti-24h.json`, `-ancore.json`):
+- L2a ✓: impronta uguale nelle 7 corse; `sim.calibrate all` rifà `calibrated.json` identico
+  byte per byte; `validate`, `validate --coverage`, `baseline` identici a `out/a5-*.json`.
+- L2b ✓: identica a L1b in ogni numero (distanze, C1, regioni, Manly, variazione totale).
+- L2c, prima corsa (selezione anche sul posto di partenza): liberi 22,1 / 53,5 / 170,1 m
+  contro 24,8 / 57,9 / 177,9 della 1: mediana −7,6%, p25 −11% (✗ P2). La porta cade su una
+  cella `open` (sel 1,33): il gatto parte più tardi, chi non si è mai mosso in 24 ore sale
+  dall'1,4% al 4,1%, i passi da 3,68 a 3,53 (`lessons.md` #38). Correzione: la selezione
+  vale dal primo passo in poi.
+- L2c, con la correzione (variante 2):
+  - P2 ✓: 24,2 / 57,0 / 180,3 m (−2,4%, −1,6%, +1,3%); passi a testa 3,82 contro 3,68;
+  - P3 ✓: regione al 50% 0,67 ha (0,72 con le sole ancore, 1,04 nella 1); al 75% 7,5 ha;
+  - P5c ✗ sul giardino e sul costruito, ✓ sul naturale: posizioni contro la 1 **0,39 · 0,48 ·
+    0,13** (Hanmer 0,553 · 0,311 · 0,136). La base scritta nella previsione era sbagliata:
+    L1b letta con le stesse definizioni dà 0,30 · 0,47 · 0,24, non 0,38 · 0,32 · 0,30
+    (`lessons.md` #39); dalla base giusta il conto (× 1,45 · 1 · 0,44) dà 0,43 · 0,47 · 0,10,
+    vicino a quello misurato. Il costruito alto viene dai muri: il 42% dei gatti sta su una
+    cella che tocca un edificio, contro il 21% della disponibilità entro 200 m;
+  - P6 ✓: C1 0,474 / 0,739;
+  - P7c ✗ di poco: variazione totale 2 contro 1 **0,29** (previsto 0,30-0,40); 3 contro 2 0,05;
+  - ancore contro la 1 (quote a terra entro 200 m, la lettura nuova): 0,48 · 0,34 · 0,18;
+    L1b le aveva lette su tutta la griglia (0,56 · 0,22 · 0,21): stesse ancore, due letture.
+  - Quote per tipo delle posizioni entro 200 m contro Huang, Tabella 6 (prova 4, fattore 2):
+    `edge` 0,45 (Huang 0,38 ✓), `open` + `garden` 0,36 (0,27 ✓), `street` 0,16 (0,10 ✓),
+    `veg` 0,03 (0,25 ✗): il «sotto la vegetazione» di Huang sono cespugli nei giardini, che a
+    10 m finiscono in `open`.
+- `python -m sim` su un caso con il luogo (privato): mappa a 4 m, 0,90 della massa dei liberi
+  nel quadrato di ±600 m a 24 ore, 0,8 s.
+Verdetto: il luogo è nel motore e senza luogo il motore non cambia. La selezione nel passo
+stringe la mappa di un altro 7% (0,72 → 0,67 ha) tenendo distanze e calibrazione; il
+naturale torna con Hanmer. Restano due scarti, tutti e due di dati o di regola, non di
+studio: i muri (la regola del passo contro gli edifici raddoppia la massa a ridosso) e la
+vegetazione di Huang (cespugli che a 10 m non si vedono). Prossima idea dai numeri: il passo
+che finisce dentro un edificio si rilancia invece di fermarsi al muro (misura: la quota a
+ridosso dei muri e le distanze), e la chioma a 1 m da satellite per vedere i cespugli.
+
+### 2026-09-26 — L3 — il passo che finisce dentro un edificio si rilancia
+Cosa: come L2c (con la selezione nel passo); un passo che finisce dove il gatto non può stare
+si rilancia (nuova lunghezza e nuova svolta dalla stessa posizione, con il richiamo
+all'ancora) fino a 5 volte, su un flusso di numeri separato; se non basta, la cella libera
+più vicina come in L2. Perché: in L2 il 42% dei gatti sta a ridosso di un edificio contro il
+21% della disponibilità, e il costruito esce 0,48 contro 0,31 di Hanmer (GPS, il tempo vero);
+Huang (dove sono stati trovati, cioè dove si cerca) dà `edge` 0,38.
+Previsione (scritta prima di lanciare):
+- a ridosso di un edificio (entro 200 m): da 0,42 a 0,22-0,30;
+- posizioni contro la 1: giardino 0,45-0,52, costruito 0,33-0,42, naturale 0,12-0,16;
+- liberi a 24 ore: mediana entro il ±5% della 1, p25 e p75 entro il ±10%;
+- C1 dentro 0,45-0,58 e 0,70-0,80; regione al 50% fra 0,60 e 0,70 ha; variazione totale 2
+  contro 1 fra 0,28 e 0,35.
+Risultato (`privato/luogo/varianti-24h.json`), variante 2:
+- a ridosso di un edificio entro 200 m **0,19** (✗ di poco, previsto 0,22-0,30; la
+  disponibilità è 0,21; in L2 0,42);
+- posizioni contro la 1 **0,50 · 0,34 · 0,16** ✓ ✓ ✓ (Hanmer 0,553 · 0,311 · 0,136);
+- liberi a 24 ore 23,4 / 56,6 / 180,9 m: mediana −2,2% ✓, p25 −5,6% ✓, p75 +1,7% ✓;
+- C1 0,472 / 0,731 ✓; regione al 50% **0,59 ha** (✗ di poco, previsto 0,60-0,70); al 75%
+  6,5 ha; variazione totale 2 contro 1 **0,33** ✓; 3 contro 2 0,07;
+- quote per tipo entro 200 m contro Huang, Tabella 6 (fattore 2): `edge` 0,25 (0,38 ✓),
+  `open` 0,50 (0,27 ✓), `street` 0,21 (0,10: fattore 2,1 ✗), `veg` 0,04 (0,25 ✗, i cespugli).
+- Sul paese sintetico fitto (`test_place3d.py`): a ridosso dei muri 1,36 volte la
+  disponibilità con la cella libera più vicina, 0,76 con il rilancio. Rilanciare dal punto di
+  partenza dà un'occupazione proporzionale alla parte libera a portata di un passo (catena con
+  il nucleo ristretto: `matematica.md`), un po' sotto la disponibilità dove è fitto; sul luogo
+  di prova 0,91.
+Verdetto: il rilancio toglie l'ammucchiamento contro i muri e porta le posizioni sui numeri di
+Hanmer (GPS: il tempo vero), tenendo distanze e calibrazione. Entra nel motore come regola
+(`redraw` = 5). La mappa si stringe ancora: al 50% da 1,04 (la 1) a 0,59 ha. Restano la
+vegetazione di Huang (cespugli nei giardini, invisibili a 10 m) e le strade un po' alte.

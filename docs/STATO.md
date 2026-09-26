@@ -7,6 +7,7 @@ un passo fatto si cancella (e va in `archivio/FATTO.md`), una decisione superata
 
 | Data | Decisione | Perché |
 |---|---|---|
+| 2026-09-26 | **Il luogo in 3D è nel motore, variante 2** (edifici e giardini, senza altezze; le altezze restano un'opzione del caso). Un gatto resta più a lungo dove gli piace stare (selezione nel passo, Hanmer) e un passo che finisce dentro un edificio si rilancia | Marcello, su consiglio: la 3 oggi cambia il 5% (nessun tetto a portata di salto) e aggiunge regole senza studio; L2-L3 in `MISURE.md` |
 | 2026-09-26 | **Il luogo al metro senza richieste**: niente email, moduli firmati o pagamenti per avere dati. Si leggono e si incrociano le fonti aperte che si scaricano da sole (altezza della chioma a 1 m da satellite, siepi, database topografici con muri e gronde, i servizi di mappe pubblici), come letture di un genoma: tante letture corte e rumorose, allineate, al posto di una lettura lunga da chiedere | Marcello; `lessons.md` #37 |
 | 2026-09-26 | Le altezze degli edifici da **3D-GloBFP** (CC BY 4.0), non da GlobalBuildingAtlas (CC BY-NC 4.0); il terreno da TINITALY (CC BY 4.0), il verde da WorldCover (CC BY 4.0). Dal computer esce solo un riquadro arrotondato a 0,01°; il punto della casa si trova in locale nell'ANNCSU | un progetto AGPL non usa dati «non commerciali» (`lessons.md` #32); l'indirizzo non esce |
 | 2026-09-26 | **Niente casi raccolti da noi.** La risposta viene da matematica, studi pubblicati e dati aperti (Dallas, Austin, OpenStreetMap, rilievi). Le regole fini del 3D si prendono dagli studi sul movimento dei gatti (GPS, uso dell'habitat) o restano stime dichiarate; si provano con i controlli che non chiedono casi: le distanze restano quelle degli studi (A, B), la mappa resta calibrata (C1) e batte gli anelli (C2) | Marcello: con la matematica e gli studi si può dare la risposta |
@@ -45,28 +46,33 @@ un passo fatto si cancella (e va in `archivio/FATTO.md`), una decisione superata
 - Moltiplicatori di zona e del piano: stime senza fonte, da tarare sui casi. Con il luogo
   in 3D li sostituisce la geometria; ogni regola fine viene da uno studio o resta una stima
   dichiarata.
-- **Il luogo in 3D aspetta la scelta di Marcello** fra le tre mappe
-  (`privato/luogo/varianti-24h.png`; L1b in `MISURE.md`). Con i dati aperti di oggi: la
-  mappa con gli edifici è calibrata e più stretta (regione al 50% da 1,04 a 0,72 ha), le
-  distanze restano quelle degli studi; la direzione pesa poco perché il passo attorno
-  all'ancora non guarda il tipo di posto; i dislivelli cambiano il 5% (nessun tetto a
-  portata di salto: `lessons.md` #35).
+- **Il luogo in 3D, cosa resta** (L3 in `MISURE.md`): la vegetazione di Huang (sotto i
+  cespugli il 16% dei trovati) a 10 m non si vede, i gatti in `veg` sono 0,04 contro 0,25; le
+  strade escono un po' alte (0,21 contro 0,10 di Huang); il rilancio del passo mette un po'
+  meno gatti dove è fitto (0,91 della disponibilità a ridosso dei muri); il quadrato di
+  ±600 m tiene il 90% della massa a 24 ore (`map_share_in_place`), meno nei giorni dopo.
 - **Giardini privati**: WorldCover a 10 m non li vede (finiscono nel «costruito»); OSM ne ha
-  quasi nessuno. Li vedrebbero l'altezza della chioma a 1 m e le siepi da satellite (ricerca in corso).
+  quasi nessuno. Li vedono il LiDAR a 1 m (DSM − DTM) e le siepi a 5 m di Copernicus.
 - **Regole senza studio** (stime dichiarate in `simulatore.md`): attraversare le strade,
   salto in su, salita e discesa, riparo sotto le auto contro i bordi degli edifici.
 - **Luogo di prova**: un indirizzo vero di Napoli dato da Marcello, in `privato/` (fuori da
   git), con il punto del portone trovato nell'ANNCSU. Mai nei documenti né nei test.
-- **Il luogo al metro dalle fonti aperte**: quali danno terreno, chioma, siepi, muri e gronde sul luogo di prova senza richieste; ricerca in corso (2026-09-26).
+- **Il luogo al metro dalle fonti aperte** (`riferimenti.md` §B, 2026-09-26): il LiDAR a 1 m
+  della Città Metropolitana di Napoli (terreno e superficie, del 2009, CC BY-SA 4.0) si
+  scarica senza richieste; le siepi a 5 m da Copernicus; muri e gronde in vettoriale non
+  trovati aperti (Regione e Comune): restano OSM e l'altezza DSM − DTM.
 - Profilo orario dei gatti: Zhang 2022 dà picchi 6-10 e 17-21 (non «tutta la notte»).
 - **Nome del progetto.**
 - **Stack del sito**: da scegliere quando il simulatore regge.
 
 ## Prossimi passi
 
-1. **Il luogo in 3D nel motore**, secondo la variante che sceglie Marcello; poi la
-   selezione anche nel passo (`stay` per tipo di posto, tempo ∝ selezione di Hanmer), con
-   la taratura rifatta (`lessons.md` #17) e le prove 1-5 di `simulatore.md`.
+1. **Il luogo al metro**: in `proto/luogo3d/fetch.py` le tessere LiDAR a 1 m della Città
+   Metropolitana (DTM e DSM) e le siepi a 5 m di Copernicus; in `world.py` terreno a 1-2 m,
+   altezza sopra il suolo (DSM − DTM), un tipo di posto «sotto la vegetazione» (cespugli,
+   siepi). Previsioni prima: quanto sale `veg` verso lo 0,25 di Huang, quanto si stringe la
+   mappa, quanti tetti, muri e terrazzamenti diventano raggiungibili (se tanti, le altezze:
+   variante 3).
 2. Scaricare Dallas e Austin: posizioni di raccolta, tempi di rientro, quota «raccolti»;
    se ci sono punto di raccolta e indirizzo del proprietario, un banco di prova con dati
    pubblicati per misurare se il luogo (strade, edifici) migliora la mappa dei cani.

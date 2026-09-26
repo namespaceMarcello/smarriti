@@ -9,7 +9,7 @@ from pathlib import Path
 
 from .engine import run_case
 from .case import load_case
-from .outputs import make_grid, summarize, write_geojson, write_png
+from .outputs import make_grid, make_place_grid, summarize, write_geojson, write_png
 
 
 def main(argv: list[str] | None = None) -> dict:
@@ -28,7 +28,7 @@ def main(argv: list[str] | None = None) -> dict:
     if until < 0:
         ap.error("--now is before the moment of loss")
     sim = run_case(case, until, args.n, args.seed)
-    grid = make_grid(sim)
+    grid = make_place_grid(sim) if sim.place is not None else make_grid(sim)
     summary = summarize(sim, case, now, grid)
 
     out = Path(args.out)

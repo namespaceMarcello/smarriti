@@ -21,6 +21,7 @@ from .engine import HELD, HOME, LOOSE, Simulation  # noqa: E402
 from .case import Case  # noqa: E402
 
 CELL_M = 50.0
+PLACE_CELL_M = 4.0  # map cells when the case has a place in 3D (two world cells a side)
 MAP_MASS = 0.99  # the map rectangle holds this share of the loose mass
 MIN_HALF_EXTENT_M = 200.0
 KDE_K = 10  # the bandwidth follows the distance to the k-th nearest loose particle
@@ -164,6 +165,29 @@ def make_grid(sim: Simulation, cell: float = CELL_M, alpha: float = KDE_ALPHA, k
     return Grid(float(x0), float(y0), cell, _smooth((ny, nx), gx[inside], gy[inside], w[inside], sig[inside] / cell))
 
 
+def make_place_grid(sim: Simulation, cell: float = PLACE_CELL_M) -> Grid:
+    """The fine map of a case with a place: the same adaptive kernels on `cell` m cells over
+    the place's square, then set to zero where the animal cannot be and rescaled to keep the
+    mass the square held. The mass beyond the square is dropped (map_share_in_place)."""
+    world, place = sim.place.w, sim.place
+    loose = (sim.state == LOOSE) & (sim.w > 0)
+    x, y, w = sim.x[loose], sim.y[loose], sim.w[loose]
+    half = -world.x0
+    m = int(round(2 * half / cell))
+    if w.sum() <= 0:
+        return Grid(-half, -half, cell, np.zeros((m, m)))
+    s = kernel_sigmas(x, y, cell) / cell
+    gx, gy = (x + half) / cell, (y + half) / cell
+    inside = (gx >= 0) & (gx < m) & (gy >= 0) & (gy < m)
+    mass = _smooth((m, m), gx[inside], gy[inside], w[inside], s[inside])
+    f = int(round(cell / world.cell))
+    frac = place.ok.astype(float).reshape(m, f, m, f).mean(axis=(1, 3))
+    before = mass.sum()
+    mass = mass * frac
+    mass *= before / max(mass.sum(), 1e-300)
+    return Grid(-half, -half, cell, mass)
+
+
 def search_spots(grid: Grid, k: int = SPOTS) -> list[dict]:
     """Greedy peaks of the map, at least SPOT_SEPARATION_M apart; each takes the mass around it."""
     cx, cy = grid.centers()
@@ -228,6 +252,7 @@ def forecast_home(sim: Simulation, hours: int = FORECAST_H) -> float:
 
 def summarize(sim: Simulation, case: Case, now: datetime, grid: Grid) -> dict:
     proj = case.projection
+    loose_mass = float(sim.w[sim.state == LOOSE].sum())
     probs = sim.state_probs()
     species = sim.categories[0].species
     when, why = next_window(now, species)
@@ -252,15 +277,22 @@ def summarize(sim: Simulation, case: Case, now: datetime, grid: Grid) -> dict:
             "radius": distance_radii(sim),
             "call_shelters": call_advice(sim, probs["held"]),
         },
+        "map_cell_m": grid.cell,
+        **({"map_share_in_place": round(float(grid.mass.sum()) / loose_mass, 4) if loose_mass > 0 else None}
+           if sim.place is not None else {}),
     }
 
 
 def write_png(grid: Grid, sim: Simulation, case: Case, summary: dict, path: Path) -> None:
     fig, ax = plt.subplots(figsize=(8, 8), dpi=110)
+    if sim.place is not None:  # the buildings under the map
+        W = sim.place.w
+        ax.imshow(np.where(W.bid >= 0, 0.8, np.nan), origin="lower", cmap="gray", vmin=0, vmax=1,
+                  extent=(W.x0, -W.x0, W.x0, -W.x0), interpolation="nearest")
     m = np.ma.masked_less_equal(grid.mass, 0)
     vmax = float(grid.mass.max()) if grid.mass.max() > 0 else 1.0
     im = ax.imshow(m, origin="lower", extent=grid.extent(), cmap="magma_r", norm=PowerNorm(0.5, 0, vmax))
-    fig.colorbar(im, ax=ax, shrink=0.75, label="P(animal is here, loose) per 50 m cell")
+    fig.colorbar(im, ax=ax, shrink=0.75, label=f"P(animal is here, loose) per {grid.cell:g} m cell")
     for p in case.environment.patches:
         ax.add_patch(Circle((p.x, p.y), p.radius_m, fill=False, edgecolor="tab:olive", linewidth=1))
         ax.annotate(p.zone, (p.x, p.y), color="tab:olive", ha="center", fontsize=8)

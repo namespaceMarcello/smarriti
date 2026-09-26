@@ -54,8 +54,8 @@ Passeggiata casuale correlata con pause e attrazione verso l'ancora:
 Ogni cella ha quattro moltiplicatori: `people` (sul rischio di essere raccolto), `traffic`
 (sul rischio di morte), `stay` (su `p_move`: sotto 1 dove l'animale trova riparo e resta),
 `mobility` (sul passo). Nel caso si dichiara la zona di casa, più toppe circolari
-facoltative («qui c'è un parco»). Il luogo vero, da dati aperti, è il prototipo del luogo in
-3D (sotto), fuori dal motore.
+facoltative («qui c'è un parco»). Il luogo vero, da dati aperti, è il luogo in 3D (sotto),
+per i casi che lo passano.
 
 | Zona | people | traffic | stay | mobility |
 |---|---|---|---|---|
@@ -70,11 +70,15 @@ nasconde nel palazzo o ai suoi piedi). **Tutti i numeri di questa sezione sono s
 fonte**; il riferimento è la villetta perché da lì vengono gli studi della taratura (Huang:
 Australia e USA; Kremer: Dallas, dove la distanza cambia per quartiere).
 
-#### Il luogo in 3D — progetto (2026-09-26; prototipo in `proto/luogo3d/`, fuori dal motore)
+#### Il luogo in 3D (nel motore: `sim/place.py`; il mondo si costruisce con `proto/luogo3d/`)
 
 **Quanto lontano lo dicono gli studi, dove lo dice il 3D.** La distanza dell'ancora resta
 quella tarata in A5; il luogo sceglie solo **in quale direzione**, fra i posti veri a quella
-distanza. Per ora solo il gatto di casa (`cat_indoor`), il caso del luogo di prova.
+distanza. Le ancore e la selezione nel passo valgono per i gatti (gli studi sono su gatti);
+per tutti, cani compresi, nessun passo finisce dove l'animale non può stare. Senza luogo il
+motore dà gli stessi bit di prima. **In uso la variante 2**, edifici e giardini senza altezze
+(Marcello, 2026-09-26); le altezze restano un'opzione del caso (`"heights": true`), da
+accendere quando i dati al metro le distinguono (`lessons.md` #35).
 
 **Il mondo** (`proto/luogo3d/fetch.py`, `world.py`): una griglia da 2 m, ±600 m attorno a
 casa, nello stesso piano di `sim/case.py`, riempita in automatico da dati aperti
@@ -126,14 +130,29 @@ sotto casa 5%, garage, capanno e sotto 10%, sotto o dentro un veicolo 3%, tombin
 aspettava fuori casa 19% (è la distanza zero, già in A). Raggruppate sui nostri tipi (senza
 «fuori casa», trappola, colonia): `veg` 0,25, `garden` 0,27, `edge` 0,38, `street` 0,10.
 
-**Il movimento attorno all'ancora**: quello di oggi; un passo che finisce dove il gatto non
-può stare (dentro un edificio nella variante 2, fuori dalle superfici raggiungibili nella 3)
-finisce sulla cella libera più vicina: un passo di un'ora è un percorso, conta dove arriva.
-(Rifiutarlo accorciava le distanze del 16%: `lessons.md` #33.) Il passo non guarda il tipo
-di posto: in 24 ore diluisce quasi tutta la selezione delle ancore (L1b in `MISURE.md`).
+**Il movimento attorno all'ancora**: quello di oggi; un passo di un'ora è un percorso, conta
+dove arriva. Un passo che finisce dove l'animale non può stare (dentro un edificio, o fuori
+dalle superfici raggiungibili con le altezze) **si rilancia** dallo stesso punto con la
+stessa regola, fino a 5 volte, su un flusso di numeri separato; se non basta, finisce sulla
+cella libera più vicina. Rifiutarlo accorciava le distanze del 16% (`lessons.md` #33);
+mandarlo subito sulla cella più vicina raddoppiava la massa a ridosso dei muri (42% contro
+21% di disponibilità, L2); rilanciato, 19% (L3), un po' sotto perché l'occupazione va con la
+parte libera a portata di un passo.
 
-**La mappa fine**: la densità a nucleo adattiva di oggi (`make_grid`) su celle da 4 m,
-poi azzerata dove il gatto non può stare e rinormalizzata.
+**La selezione nel passo**: dopo il primo passo un gatto si muove con `p_move × sel_ref /
+sel(tipo)`: resta più a lungo dove gli piace stare, e il tempo passato in un tipo di posto va
+con `sel` (catena con attesa: l'occupazione è la disponibilità per 1 / `p_move`). `sel_ref` è
+la media di `sel` sulle ancore estratte con la direzione a caso, prima che il luogo la scelga:
+tiene la media di `p_move`, quindi le distanze. Prima del primo passo niente selezione: la
+porta è il posto da cui il gatto fugge, non uno che ha scelto (senza questa regola la
+mediana a 24 ore scende del 7,6%: `lessons.md` #38). Senza la selezione nel passo le ancore
+scelgono e il passo diluisce (L1b).
+
+**La mappa fine** (`make_place_grid` in `sim/outputs.py`; la usa `python -m sim` quando il
+caso ha un luogo): la densità a nucleo adattiva di oggi su celle da 4 m sul quadrato del
+luogo, azzerata dove il gatto non può stare e riportata alla massa che il quadrato teneva. La
+massa fuori dal quadrato si perde: il riassunto la dice (`map_share_in_place`, 0,90 a 24 ore
+sul luogo di prova).
 
 **Come si prova senza casi**:
 1. le distanze delle ancore restano quelle di A5 (quantili entro il 2%);
@@ -148,10 +167,12 @@ poi azzerata dove il gatto non può stare e rinormalizzata.
    0,311 · 0,136), letti **contro la variante 1** alla stessa distanza (un disco attorno a
    casa non è la disponibilità giusta: `lessons.md` #36).
 
-Esito del primo prototipo (L1, L1b in `MISURE.md`): regge 1-3 (distanze uguali entro l'1%,
-C1 0,48 / 0,74); la regione al 50% scende da 1,04 a 0,72 ha; il giardino torna con Hanmer,
-il naturale no; la variante 3 differisce dalla 2 del 5% (nessun tetto a portata di salto
-con i dati aperti di oggi: `lessons.md` #35). Tutto in 3 s sul luogo di prova.
+Esito (L1, L1b, L2 in `MISURE.md`), gatto di casa dal primo piano a 24 ore, variante 2 con
+la selezione nel passo e il rilancio (L3): regge 1-3 (distanze dei liberi entro il 6% della variante 1, C1
+0,47 / 0,73); la regione al 50% scende da 1,04 a 0,59 ha (0,72 con le sole ancore, 0,67
+con la selezione nel passo, 0,59 con il rilancio); le posizioni lette contro la 1 danno
+giardino 0,50 · costruito 0,34 · naturale 0,16 (Hanmer 0,553 · 0,311 · 0,136). La variante 3
+differisce dalla 2 del 7% (`lessons.md` #35). `python -m sim` con il luogo: meno di 1 s.
 
 | Parametro | Valore | Fonte |
 |---|---|---|
@@ -163,6 +184,8 @@ con i dati aperti di oggi: `lessons.md` #35). Tutto in 3 s sul luogo di prova.
 | `c_road`: pedonale · servizio · residenziale · terziaria e oltre | 1 · 2 · 3 · 10 | stima: nessuno studio su attraversamento e larghezza |
 | `k_up` (metri in più per metro salito) | 5 | stima: nessuno studio su salita e discesa |
 | distanza di `edge` da un edificio | 3 m | stima |
+| selezione nel passo | `p_move × sel_ref / sel(tipo)`, dal primo passo in poi | Hanmer 2017 (il tempo va con la selezione); `sel_ref` dalle ancore a caso (tiene le distanze) |
+| `redraw` (rilanci di un passo che finisce dentro un edificio) | 5, poi la cella libera più vicina | scelta su L2-L3: con 0 la massa a ridosso dei muri raddoppia |
 
 ### Transizioni di stato (ogni ora, solo LOOSE)
 
@@ -307,9 +330,11 @@ errori standard dentro 0,45-0,58 e 0,84-0,95.
 - Luogo in 3D: la selezione dei posti viene da gatti residenti (Hanmer 2017), non smarriti:
   nessuno studio GPS su gatti smarriti è stato trovato. Nessuno studio per attraversare le
   strade, il salto in su, la salita e la discesa: stime dichiarate nella tabella.
-- Luogo in 3D: il passo attorno all'ancora non guarda il tipo di posto e in 24 ore diluisce
-  la selezione (L1b); i giardini privati a 10 m non si vedono; con il terreno a 10 m nessun
-  tetto è a portata di salto (`lessons.md` #35).
+- Luogo in 3D: il rilancio del passo mette un po' meno gatti dove è fitto (0,91 della
+  disponibilità a ridosso dei muri sul luogo di prova, L3); il «naturale» di Hanmer (grandi aree verdi) non è il
+  «sotto la vegetazione» di Huang (cespugli nei giardini), che a 10 m non si vede; i
+  giardini privati a 10 m non si vedono; con il terreno a 10 m nessun tetto è a portata di
+  salto (`lessons.md` #35).
 
 ## Stack e struttura
 
@@ -324,13 +349,15 @@ sim/
   calibrated.json  # phase A output
   environment.py   # zones, patches, floor: per-cell multipliers
   engine.py        # particles, hourly step, state transitions, run_case
+  place.py         # the place in 3D: world, cell types, exits, reachability, anchors, steps
   case.py          # case JSON, local projection
-  outputs.py       # grid, PNG/GeoJSON map, states, advice
+  outputs.py       # grid (and the 4 m map of a place), PNG/GeoJSON map, states, advice
   calibrate.py     # phase A
   validate.py      # phase B, and C1 (map calibration: --coverage)
   baseline.py      # phase C: ring model vs simulator
   compare.py       # before / rings / now, side by side (out/confronto-prima-dopo.png)
   cli.py           # python -m sim <case.json> --now <iso> --out <dir>
+  fingerprint.py   # hashes of 7 runs without a place: before and after an engine change
 tests/             # pytest -q: about 30 s
   conftest.py      # distribution-free quantile interval (4 SE)
   test_engine.py   # behaviour: determinism, zone, grid, spots, CLI < 10 s
@@ -338,13 +365,13 @@ tests/             # pytest -q: about 30 s
   test_pressure.py   # 90 days, 100k particles, extremes, 40 random cases
   test_targets.py    # phase A: the whole 4-SE interval within +-20% of each target
   test_hypotheses.py # phases B and C1; known failures are strict xfails
+  test_place3d.py    # the place in 3D on a synthetic place (no private data)
 cases/
   esempio-gatto.json, esempio-cane.json
-proto/luogo3d/     # the place in 3D, prototype outside the engine (docs: "Il luogo in 3D")
+proto/luogo3d/     # builds the world of a place (docs: "Il luogo in 3D")
   fetch.py         # open data for one place: OSM, 3D-GloBFP, TINITALY, WorldCover, Copernicus
-  world.py         # layers on a 2 m grid centred on home
-  place3d.py       # surfaces, exits, reachability, anchors; PlaceSimulation (subclass)
-  variants.py      # the three maps side by side and the checks
+  world.py         # layers on a 2 m grid centred on home -> world.npz
+  variants.py      # the three maps side by side and the checks (L1, L1b, L2)
   utm.py, cogread.py  # pure-Python UTM and GeoTIFF windows (lessons.md #31)
 ```
 
@@ -363,6 +390,11 @@ Formato del caso (`cases/*.json`):
 
 `category`: una delle cinque (`cat_indoor`, `cat_outdoor`, `dog_friendly`, `dog_wary`,
 `dog_fearful`) o `cat` / `dog` se non si sa.
+
+Con il luogo in 3D si aggiunge `"place": {"world": "luogo/world.npz", "heights": false}`: il
+percorso parte dalla cartella del caso, il mondo deve essere centrato sulla casa del caso
+(entro 1 m, altrimenti errore). Con un luogo la zona resta quella di riferimento (villette):
+i moltiplicatori di zona sono stime che il luogo sostituisce.
 
 ## Quando v0 è finito
 

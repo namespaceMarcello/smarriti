@@ -1,9 +1,11 @@
-"""The place in 3D decides the direction; the calibrated distance stays (docs/simulatore.md,
-"Il luogo in 3D - progetto"). A prototype outside the engine: PlaceSimulation subclasses
-sim.engine.Simulation and changes only the anchor direction and the refused steps.
+"""The place in 3D: the real shape of the place decides the direction, the studies decide
+the distance (docs/simulatore.md, "Il luogo in 3D").
 
-Variants: 1 = today (uniform plane), 2 = buildings and gardens (flat), 3 = with heights
-and slopes (ground and roofs as surfaces, jumps).
+A World is a 2 m grid around home filled from open data (proto/luogo3d/world.py builds
+it). A Place reads it for one case: the type of every cell, where the cat can stand, the
+exits from home, how reachable every cell is, and the anchor weights. Without heights the
+buildings are walls (the variant chosen on 2026-09-26); with heights the roofs are surfaces
+reached by jumps.
 """
 from __future__ import annotations
 
@@ -15,13 +17,11 @@ import numpy as np
 from scipy import ndimage, sparse
 from scipy.sparse.csgraph import dijkstra
 
-from sim.engine import Simulation
-
 TYPES = ("veg", "garden", "edge", "open", "street", "roof")
 
 
 @dataclass
-class Params:
+class PlaceParams:
     """docs/simulatore.md, table of the place in 3D. Every value: a source or a declared estimate."""
     p_door: float = 272 / (272 + 42 + 19 + 21)  # Huang 2018 Table 4: door vs window/balcony/screen
     floor_m: float = 3.0  # estimate (Italian storey; Whitney & Mehlhaff 1987 use 3.66 m in New York)
@@ -39,11 +39,17 @@ class Params:
     edge_m: float = 3.0  # estimate
     ring_frac: float = 0.05
     ring_min: float = 2.0
-    slope_allow: float = 0.3  # a walk step may change height by 30% of its length (v3)
+    slope_allow: float = 0.3  # a walk step may change height by 30% of its length (with heights)
+    # the selection also in the step: a cat moves less often where it likes to stay, so the time
+    # spent in a type of place goes with sel (docs/simulatore.md, "Il movimento attorno all'ancora")
+    step_selection: bool = True
+    # a step that ends where the cat cannot be is drawn again up to `redraw` times, then it ends on
+    # the nearest free cell; 0 = straight to the nearest free cell (L2: twice the mass against walls)
+    redraw: int = 5
 
 
 class World:
-    def __init__(self, path: Path):
+    def __init__(self, path: str | Path):
         W = np.load(path)
         self.meta = json.loads(str(W["meta"]))
         self.cell, self.x0, self.n = self.meta["cell"], self.meta["x0"], self.meta["n"]
@@ -62,11 +68,11 @@ class World:
 
 
 class Place:
-    """Surfaces, exits, reachability and anchor weights for one variant (2 or 3)."""
+    """Surfaces, exits, reachability and anchor weights of one place, for a cat leaving `floor`."""
 
-    def __init__(self, world: World, variant: int, floor: int, par: Params = Params()):
-        assert variant in (2, 3)
-        self.w, self.v, self.par, self.floor = world, variant, par, floor
+    def __init__(self, world: World, floor: int, heights: bool = False, par: PlaceParams | None = None):
+        self.w, self.heights, self.floor = world, heights, floor
+        self.par = par = par or PlaceParams()
         W = world
         bld = W.bid >= 0
         home = W.bid == W.bid_home
@@ -78,17 +84,19 @@ class Place:
         t[W.road >= 2] = TYPES.index("street")
         t[bld] = TYPES.index("roof")
         self.type = t
-        self.z = W.ground + (W.bh if variant == 3 else 0.0)
-        # where the cat can stand: v2 the ground outside buildings; v3 ground and roofs, not its own house
-        self.surface = ~bld if variant == 2 else ~home
+        self.z = W.ground + (W.bh if heights else 0.0)
+        # where the cat can stand: flat, the ground outside buildings; with heights, ground and roofs but its own house
+        self.surface = ~home if heights else ~bld
         self.exits = self._exits(home)
         self.D = self._costs()
         with np.errstate(divide="ignore", invalid="ignore"):
             reach = [np.where(np.isfinite(D), np.minimum(1.0, np.where(D > 0, W.d / D, 1.0)), 0.0) for D in self.D]
         self.reach = par.p_door * reach[0] + (1 - par.p_door) * reach[1]
-        sel = np.array([par.sel[k] for k in TYPES])
-        self.weight = np.where(self.surface, sel[t] * self.reach, 0.0)
+        self.ok = self.surface & (self.reach > 0)  # where a cat can be
+        self.sel = np.array([par.sel[k] for k in TYPES])[t]
+        self.weight = np.where(self.surface, self.sel * self.reach, 0.0)
         self._index_rings()
+        _, self._near = ndimage.distance_transform_edt(~self.ok, return_indices=True)
 
     # --- exits ------------------------------------------------------------------------
     def _exits(self, home):
@@ -98,16 +106,15 @@ class Place:
         if not door.any():  # the nearest standable cell to the door point
             k = np.argmin(np.where(self.surface & ~home, W.d, np.inf))
             door = np.zeros_like(home); door.flat[k] = True
-        if self.v == 2:
-            window = ring
-        else:
-            z_door = float(np.median(W.ground[door]))
-            z_floor = z_door + self.floor * par.floor_m
-            dz = z_floor - self.z
-            window = ring & (dz <= par.h_down) & (-dz <= par.h_up)
-            if not window.any():  # nowhere to jump: the window route falls back to the door
-                window = door
-        self.z_floor = None if self.v == 2 else z_floor
+        self.z_floor = None
+        if not self.heights:
+            return door, ring
+        z_door = float(np.median(W.ground[door]))
+        self.z_floor = z_door + self.floor * par.floor_m
+        dz = self.z_floor - self.z
+        window = ring & (dz <= par.h_down) & (-dz <= par.h_up)
+        if not window.any():  # nowhere to jump: the window route falls back to the door
+            window = door
         return door, window
 
     # --- reachability -------------------------------------------------------------------
@@ -123,7 +130,7 @@ class Place:
             ok = self.surface[ya, xa] & self.surface[yb, xb]
             step = W.cell * (1.4142135 if dx and dy else 1.0)
             cost = step * 0.5 * (mult[ya, xa] + mult[yb, xb])
-            if self.v == 3:
+            if self.heights:
                 up = self.z[yb, xb] - self.z[ya, xa]
                 slope_ok = np.abs(up) <= step * par.slope_allow  # ground slope, or roof to roof
                 jump_ok = (up <= par.h_up) & (-up <= par.h_down)
@@ -131,11 +138,7 @@ class Place:
                 cost = cost + par.k_up * np.maximum(up, 0.0)
             rows.append(idx[ya, xa][ok]); cols.append(idx[yb, xb][ok]); vals.append(cost[ok])
         G = sparse.csr_matrix((np.concatenate(vals), (np.concatenate(rows), np.concatenate(cols))), shape=(n * n, n * n))
-        out = []
-        for ex in self.exits:
-            D = dijkstra(G, directed=True, indices=np.flatnonzero(ex), min_only=True)
-            out.append(D.reshape(n, n))
-        return out
+        return [dijkstra(G, directed=True, indices=np.flatnonzero(ex), min_only=True).reshape(n, n) for ex in self.exits]
 
     # --- anchors -------------------------------------------------------------------------
     def _index_rings(self):
@@ -161,25 +164,23 @@ class Place:
         ay = np.where(ok, W.gy.ravel()[cell] + jy, np.nan)
         return ax, ay
 
+    # --- steps ---------------------------------------------------------------------------
     def standable(self, x, y):
+        """True where a cat can be, and everywhere off the grid."""
         iy, ix, inside = self.w.index(x, y)
-        s = self.surface[iy, ix] & (self.reach[iy, ix] > 0)
-        return np.where(inside, s, True)
+        return np.where(inside, self.ok[iy, ix], True)
 
     def snap(self, x, y):
         """The nearest cell where the cat can stand (lessons.md #33: an hourly step is a path,
         only its end counts)."""
-        if not hasattr(self, "_near"):
-            ok = self.surface & (self.reach > 0)
-            _, (ny, nx) = ndimage.distance_transform_edt(~ok, return_indices=True)
-            self._near = (ny, nx)
         iy, ix, _ = self.w.index(x, y)
         jy, jx = self._near[0][iy, ix], self._near[1][iy, ix]
         return self.w.gx[jy, jx], self.w.gy[jy, jx]
 
-    def z_at(self, x, y):
-        iy, ix, _ = self.w.index(x, y)
-        return self.z[iy, ix]
+    def sel_at(self, x, y):
+        """sel of the cell under each point; NaN off the grid or where a cat cannot be."""
+        iy, ix, inside = self.w.index(x, y)
+        return np.where(inside & self.ok[iy, ix], self.sel[iy, ix], np.nan)
 
     def start_point(self):
         door = self.exits[0]
@@ -187,32 +188,5 @@ class Place:
         return float(self.w.gx.flat[k]), float(self.w.gy.flat[k])
 
 
-class PlaceSimulation(Simulation):
-    """Simulation whose anchor direction and steps follow a Place; distances stay A5's."""
-
-    def __init__(self, *args, place: Place | None = None, dir_seed: int = 1, **kw):
-        super().__init__(*args, **kw)
-        self.place = place
-        if place is None:
-            return
-        rng = np.random.default_rng(dir_seed)  # a separate stream: the engine's draws stay paired
-        rand = self.has_anchor & ((self.ax != 0) | (self.ay != 0))
-        r = np.hypot(self.ax, self.ay)[rand]
-        ax, ay = place.sample_anchor(r, rng)
-        keep = np.isnan(ax)  # ring without weight or off the grid: today's random direction
-        self.ax[rand] = np.where(keep, self.ax[rand], ax)
-        self.ay[rand] = np.where(keep, self.ay[rand], ay)
-        self.fallback = float(keep.mean()) if len(keep) else 0.0
-        sx, sy = place.start_point()
-        self.x[:], self.y[:] = sx, sy
-
-    def step(self) -> None:
-        if self.place is None:
-            return super().step()
-        ox, oy = self.x.copy(), self.y.copy()
-        super().step()
-        moved = (self.x != ox) | (self.y != oy)
-        bad = moved & ~self.place.standable(self.x, self.y)
-        if bad.any():
-            sx, sy = self.place.snap(self.x[bad], self.y[bad])
-            self.x[bad], self.y[bad] = sx, sy
+def load_place(path: str | Path, floor: int, heights: bool = False) -> Place:
+    return Place(World(path), floor, heights)

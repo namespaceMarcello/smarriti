@@ -6,8 +6,8 @@ smarrito: migliaia di animali virtuali che partono da casa e si muovono nella zo
 sugli studi pubblicati e sui dati aperti. **Solo matematica**: dopo la perdita non riceve niente
 (né avvistamenti, né ricerche, né volantini). **Non è un'app**: un sito che si apre da un
 link. Nato il 2026-09-25. Il simulatore v0 esiste (`sim/`) e con la mappa lisciata batte
-gli anelli (fase C); il luogo in 3D è un prototipo in `proto/luogo3d/`, fuori dal motore; i
-prossimi passi sono in `docs/STATO.md`.
+gli anelli (fase C); il luogo in 3D è nel motore (`sim/place.py`), il mondo di un luogo si
+costruisce con `proto/luogo3d/`; i prossimi passi sono in `docs/STATO.md`.
 
 **Lo spirito: leggere il problema come un genoma** (Marcello). Ogni studio, ogni
 dataset aperto è un dato da sequenziare, dove gli altri lo leggono da solo.
@@ -94,10 +94,12 @@ Stack: simulatore in Python 3.12 (`numpy`, `scipy`, `matplotlib`, `pytest`; `pys
 .venv/Scripts/python -m sim.validate              # fase B; --coverage per C1 (mappa calibrata?)
 .venv/Scripts/python -m sim.baseline              # fase C: anelli contro simulatore, ~45 s
 .venv/Scripts/python -m sim.compare               # immagine prima / anelli / ora (out/confronto-prima-dopo.png), 2 s
-.venv/Scripts/python -m pytest -q                 # ~40 s; --runslow aggiunge i test lenti (~20 s)
+.venv/Scripts/python -m pytest -q                 # ~50 s; --runslow aggiunge i test lenti (~20 s)
+.venv/Scripts/python -m sim.fingerprint           # impronta del motore senza luogo: prima e dopo ogni modifica, 5 s
 .venv/Scripts/python -m proto.luogo3d.fetch privato/luogo-prova.json privato/luogo      # dati aperti del luogo
 .venv/Scripts/python -m proto.luogo3d.world privato/luogo-prova.json privato/luogo      # griglia da 2 m, 3 s
-.venv/Scripts/python -m proto.luogo3d.variants privato/luogo-prova.json privato/luogo   # le tre mappe, 3 s
+.venv/Scripts/python -m proto.luogo3d.variants privato/luogo-prova.json privato/luogo   # le tre mappe, 4 s
+.venv/Scripts/python -m sim privato/caso-luogo-prova.json --now 2026-09-26T20:00 --out privato/out-caso  # caso con il luogo: mappa a 4 m
 ```
 
 Per Marcello: doppio clic su `vedi-la-mappa.bat` (fuori da git) rifà e apre le mappe.

@@ -45,3 +45,14 @@ affiancate in `privato/luogo/varianti-24h.png`; L1 e L1b in `MISURE.md`; studi G
 in `riferimenti.md` §A; email per il LiDAR in `privato/email-lidar.md`. Si prova:
 `python -m proto.luogo3d.variants privato/luogo-prova.json privato/luogo` (3 s),
 `pytest -q tests/test_place3d.py`.
+
+### 2026-09-26 — Il luogo in 3D nel motore (variante 2)
+`sim/place.py` e `Simulation(place=...)`: le ancore dei gatti prendono la direzione dal
+luogo, un gatto resta più a lungo dove gli piace stare (Hanmer), un passo che finisce dentro
+un edificio si rilancia; il caso accetta `"place": {"world": ...}` e `python -m sim` disegna
+la mappa a 4 m. Senza luogo il motore dà gli stessi bit (taratura, B, C1, C2 identici). Al
+50% la mappa del luogo di prova passa da 1,04 a 0,59 ha. Si prova: `pytest -q
+tests/test_place3d.py`, `python -m proto.luogo3d.variants privato/luogo-prova.json
+privato/luogo`, `python -m sim privato/caso-luogo-prova.json --now 2026-09-26T20:00 --out
+privato/out-caso`.
+
